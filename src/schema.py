@@ -1,6 +1,7 @@
 import pandera.pandas as pa
 from pandera.typing import Series
 
+# TODO: double check comments after modifications.
 
 class RawSuppSchema(pa.DataFrameModel):
     """
@@ -119,14 +120,40 @@ class PhysicsSchema(PreprocessedSchema):
         strict = 'filter'
 
 
+class AggregationScoresSchema(pa.DataFrameModel):
+    """
+    Validates the 'Score Card' subset merged onto the animation frames.
+    Ensures every frame knows the context (Void) and the result (Eraser Score).
+    """
+    # Identifiers
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
+
+    # Phase A Metrics (Context)
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
+
+    # Phase B Metrics (Results)
+    vis_score: Series[float] = pa.Field(nullable=True)  
+    ceoe_score: Series[float] = pa.Field(nullable=True)
+
+    class Config:
+        strict = 'filter'
+
+class FullPlayAnimationSchema(PhysicsSchema, AggregationScoresSchema): 
+
+    class Config:
+        strict = 'filter'
+
 class ContextSchema(pa.DataFrameModel):
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     
     target_nfl_id: Series[float] = pa.Field(nullable=True)
     nearest_def_nfl_id: Series[float] = pa.Field(nullable=True)
-    dist_at_throw: Series[float] = pa.Field(ge=0) 
-    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"])
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True) 
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
 
     class Config:
         strict = 'filter'
@@ -160,29 +187,7 @@ class EraserMetricsSchema(pa.DataFrameModel):
         strict = 'filter'
 
 
-class AnimationScoresSchema(pa.DataFrameModel):
-    """
-    Validates the 'Score Card' subset merged onto the animation frames.
-    Ensures every frame knows the context (Void) and the result (Eraser Score).
-    """
-    # Identifiers
-    game_id: Series[int] = pa.Field(coerce=True)
-    play_id: Series[int] = pa.Field(coerce=True)
-    nfl_id: Series[float] = pa.Field(coerce=True)
-
-    # Phase A Metrics (Context)
-    dist_at_throw: Series[float] = pa.Field(ge=0)
-    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"])
-
-    # Phase B Metrics (Results)
-    vis_score: Series[float] = pa.Field(nullable=True)  
-    ceoe_score: Series[float] = pa.Field(nullable=True)
-
-    class Config:
-        strict = 'filter'
-
-
-class PlayerMetaSchema(pa.DataFrameModel):
+class BenchMarkingSchema(pa.DataFrameModel):
     """
     Validates the Player Metadata (Static info) to be attached to the final report.
     Used to select columns dynamically in the orchestrator.
@@ -195,7 +200,34 @@ class PlayerMetaSchema(pa.DataFrameModel):
     # Metadata
     player_role: Series[str] = pa.Field()
     player_position: Series[str] = pa.Field()
-    week: Series[int] = pa.Field(coerce=True) # Critical for file management
+    week: Series[int] = pa.Field(coerce=True) 
     
     class Config:
         strict = 'filter'
+
+
+class AnalysisReportSchema(pa.DataFrameModel):
+    """
+    Validates the Player Metadata (Static info) to be attached to the final report.
+    Used to select columns dynamically in the orchestrator.
+    """
+    game_id: Series[int]
+    play_id: Series[int]
+    nfl_id: Series[float]
+    
+    player_position: Series[str] = pa.Field(nullable=False) # Must exist for benchmarking
+    player_role: Series[str]
+    
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+
+    # Context
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
+    
+    # Metrics
+    vis_score: Series[float]
+    avg_closing_speed: Series[float]
+    
+    ceoe_score: Series[float] = pa.Field(nullable=False) # Should never be NaN
+
+    class Config:
+        strict = 'filter' 
