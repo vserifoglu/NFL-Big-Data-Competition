@@ -1,8 +1,8 @@
-import pandera as pa
+import pandera.pandas as pa
 from pandera.typing import Series
 
 
-class RawSuppSchema(pa.SchemaModel):
+class RawSuppSchema(pa.DataFrameModel):
     """
     Validates 'supplementary_data.csv'.
     Contains Game Context, Play Types, and Outcomes.
@@ -11,93 +11,77 @@ class RawSuppSchema(pa.SchemaModel):
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     
-    # --- Plotting & Context ---
+    # --- Context ---
     week: Series[int] = pa.Field(coerce=True)
     home_team_abbr: Series[str]
     visitor_team_abbr: Series[str]
-    play_description: Series[str] = pa.Field(nullable=True)
     
     # --- Game State ---
     down: Series[int] = pa.Field(coerce=True, ge=1, le=4)
     yards_to_go: Series[int] = pa.Field(coerce=True)
     possession_team: Series[str]
-    defensive_team: Series[str]
+    yardline_side: Series[str] = pa.Field(nullable=True)
     yardline_number: Series[int] = pa.Field(ge=0, le=50) 
+    
+    # --- Win Probability (Used for filters) ---
     pre_snap_home_team_win_probability: Series[float] = pa.Field(nullable=True)
+    pre_snap_visitor_team_win_probability: Series[float] = pa.Field(nullable=True)
 
-    # --- Logic Filters (Critical) ---
+    # --- Logic Filters ---
     play_nullified_by_penalty: Series[str] = pa.Field(nullable=True)
     dropback_type: Series[str] = pa.Field(nullable=True) 
-    play_action: Series[bool] = pa.Field(coerce=True, nullable=True)
-    
-    # --- Defensive Scheme ---
     team_coverage_man_zone: Series[str] = pa.Field(nullable=True)
     team_coverage_type: Series[str] = pa.Field(nullable=True) 
-    
-    # --- Results & Geometry ---
     pass_result: Series[str] = pa.Field(nullable=True) 
-    pass_length: Series[float] = pa.Field(nullable=True)
-    pass_location_type: Series[str] = pa.Field(nullable=True) 
-    yards_gained: Series[float] = pa.Field(nullable=True)
-    expected_points_added: Series[float] = pa.Field(nullable=True)
+    pass_length: Series[int] = pa.Field(nullable=True)
     route_of_targeted_receiver: Series[str] = pa.Field(nullable=True)
 
     class Config:
         strict = 'filter' 
-        
 
-class RawTrackingSchema(pa.SchemaModel):
+
+class RawTrackingSchema(pa.DataFrameModel):
     """
-    Validates 'input_wXX.csv' files (Pre-Throw / Full Play).
+    Validates 'input_wXX.csv' files (Pre-Throw).
     """
-    # --- Identifiers ---
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     frame_id: Series[int] = pa.Field(coerce=True, ge=1)
     nfl_id: Series[float] = pa.Field(coerce=True, nullable=True) # Nullable for Ball
-    
-    # --- Timing ---
-    event: Series[str] = pa.Field(nullable=True) 
 
     # --- Normalization Anchors ---
     play_direction: Series[str] 
-    absolute_yardline_number: Series[int] = pa.Field(ge=0, le=120)
+    absolute_yardline_number: Series[int] = pa.Field(ge=0, le=120, nullable=True)
     
     # --- Player Attributes ---
-    player_name: Series[str] = pa.Field(nullable=True)
-    jersey_number: Series[float] = pa.Field(nullable=True, coerce=True)
-    player_position: Series[str] = pa.Field(nullable=True)
-    player_side: Series[str] = pa.Field(nullable=True) 
     player_role: Series[str] = pa.Field(nullable=True)
+    player_position: Series[str] = pa.Field(nullable=True)
     
-    # --- Physics Vectors ---
-    x: Series[float] = pa.Field(ge=0, le=120)
-    y: Series[float] = pa.Field(ge=0, le=53.3)
-    s: Series[float] = pa.Field(ge=0, le=15, nullable=True) 
-    a: Series[float] = pa.Field(ge=0, le=15, nullable=True) 
-    o: Series[float] = pa.Field(ge=0, le=360, nullable=True) 
-    dir: Series[float] = pa.Field(ge=0, le=360, nullable=True)
+    # --- Physics Vectors (Raw) ---
+    x: Series[float] = pa.Field(ge=0, nullable=True)
+    y: Series[float] = pa.Field(ge=0, nullable=True)
+    s: Series[float] = pa.Field(ge=0, nullable=True) 
     
-    # --- Answer Key ---
+    # --- Targets ---
     ball_land_x: Series[float] = pa.Field(nullable=True)
     ball_land_y: Series[float] = pa.Field(nullable=True)
 
     class Config:
         strict = 'filter' 
-        
 
-class OutputTrackingSchema(pa.SchemaModel):
+
+class OutputTrackingSchema(pa.DataFrameModel):
     """
-    Validates 'output_wXX.csv' files (Post-Throw Frames).
-    Does NOT require speed/accel/dir.
+    Validates 'output_wXX.csv' files (Post-Throw).
+    Minimal schema since physics are missing.
     """
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
-    nfl_id: Series[int] = pa.Field(coerce=True, nullable=True)
+    nfl_id: Series[float] = pa.Field(coerce=True, nullable=True)
     frame_id: Series[int] = pa.Field(coerce=True)
     
-    x: Series[float] = pa.Field(ge=0, le=120, nullable=True)
-    y: Series[float] = pa.Field(ge=0, le=53.3, nullable=True)
+    x: Series[float] = pa.Field(ge=0, nullable=True)
+    y: Series[float] = pa.Field(ge=0, nullable=True)
 
     class Config:
         strict = 'filter'
@@ -106,57 +90,112 @@ class OutputTrackingSchema(pa.SchemaModel):
 class PreprocessedSchema(RawTrackingSchema, RawSuppSchema):
     """
     Validates the output of 'preprocessing.py'.
-    Inherits RawTracking + RawSupp.
-    Adds calculated fields from the ETL process.
+    Combined Schema + Derived Features.
     """
-    
     phase: Series[str] = pa.Field(isin=["pre_throw", "post_throw"])
-    los_x: Series[float] = pa.Field(nullable=True) # Calculated Line of Scrimmage
     
-    s_derived: Series[float] = pa.Field(nullable=True, coerce=True)
-    a_derived: Series[float] = pa.Field(nullable=True, coerce=True)
-    dir_derived: Series[float] = pa.Field(nullable=True, coerce=True) # 0-360 degrees
+    # [NEW] Field Logic Feature (0-100 scale)
+    yards_from_own_goal: Series[int] = pa.Field(ge=0, le=100, nullable=True)
+    
+    # [NEW] Win Probability of Possession Team (0-1)
+    possession_win_prob: Series[float] = pa.Field(ge=0, le=1, nullable=True)
 
     class Config:
         strict = 'filter'
 
 
-class FeatureEngineeredSchema(PreprocessedSchema):
+class PhysicsSchema(PreprocessedSchema):
     """
-    Validates the output of 'features.py' (Landmark Calculation).
-    Inherits PreprocessedSchema.
-    Adds Zone Assignments and Target Coordinates.
+    Validates the output of 'physics_engine.py'.
+    Adds derived kinematics from Savitzky-Golay.
     """
+    # Derived from X,Y deltas
+    s_derived: Series[float] = pa.Field(nullable=True, coerce=True) # Speed
+    a_derived: Series[float] = pa.Field(nullable=True, coerce=True) # Accel
+    
+    # Note: 'dir' and 'o' are REMOVED because we rely on closing vectors now.
+    
+    class Config:
+        strict = 'filter'
 
-    # Angle from Player to Ball
-    dir_ideal: Series[float] = pa.Field(nullable=True, ge=0, le=360) 
 
-    # Deviation (Efficiency Error)
-    angle_diff: Series[float] = pa.Field(nullable=True, ge=0, le=180) 
+class ContextSchema(pa.DataFrameModel):
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    
+    target_nfl_id: Series[float] = pa.Field(nullable=True)
+    nearest_def_nfl_id: Series[float] = pa.Field(nullable=True)
+    dist_at_throw: Series[float] = pa.Field(ge=0) 
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"])
 
     class Config:
         strict = 'filter'
 
 
-class VoidResultSchema(FeatureEngineeredSchema):
+class EraserMetricsSchema(pa.DataFrameModel):
     """
-    Validates the output of 'metrics.py' (Void Detection).
-    Inherits FeatureEngineeredSchema.
-    Adds Drift, Penalties, and EPA Impact.
+    PHASE B: The Action.
+    One row per Play/Defender. Defines the closing efficiency.
     """
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
     
-    # How many frames to align vector?
-    reaction_time_frames: Series[float] = pa.Field(nullable=True) 
+    # S_arrival
+    dist_at_arrival: Series[float] = pa.Field() 
 
-    # True if reaction_time > Threshold
-    is_reaction_void: Series[bool]   
+    # Total yards gained on target
+    distance_closed: Series[float] = pa.Field() 
 
-    # Average angle_diff over the play   
-    avg_pursuit_error: Series[float]    
+    # Yards per second toward target
+    avg_closing_speed: Series[float] = pa.Field() 
+    
+    # Void Improvement Score (S_throw - S_arrival)
+    vis_score: Series[float] = pa.Field() 
+    
+    # Closing Efficiency Over Expectation
+    ceoe_score: Series[float] = pa.Field(nullable=True) 
 
-    # EPA Context
-    is_punished: Series[bool]
-    damage_epa: Series[float] = pa.Field(nullable=True)
+    class Config:
+        strict = 'filter'
 
+
+class AnimationScoresSchema(pa.DataFrameModel):
+    """
+    Validates the 'Score Card' subset merged onto the animation frames.
+    Ensures every frame knows the context (Void) and the result (Eraser Score).
+    """
+    # Identifiers
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
+
+    # Phase A Metrics (Context)
+    dist_at_throw: Series[float] = pa.Field(ge=0)
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"])
+
+    # Phase B Metrics (Results)
+    vis_score: Series[float] = pa.Field(nullable=True)  
+    ceoe_score: Series[float] = pa.Field(nullable=True)
+
+    class Config:
+        strict = 'filter'
+
+
+class PlayerMetaSchema(pa.DataFrameModel):
+    """
+    Validates the Player Metadata (Static info) to be attached to the final report.
+    Used to select columns dynamically in the orchestrator.
+    """
+    # Keys
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
+    
+    # Metadata
+    player_role: Series[str] = pa.Field()
+    player_position: Series[str] = pa.Field()
+    week: Series[int] = pa.Field(coerce=True) # Critical for file management
+    
     class Config:
         strict = 'filter'

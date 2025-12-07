@@ -34,7 +34,6 @@ class DataLoader:
             
         df = pd.read_csv(self.supp_file, low_memory=False)
             
-        # VALIDATE (Strict Filter)
         return RawSuppSchema.validate(df)
 
     def stream_weeks(self) -> Generator[Tuple[str, pd.DataFrame, pd.DataFrame], None, None]:
@@ -44,9 +43,13 @@ class DataLoader:
         
         Validation happens JUST-IN-TIME here.
         """
+
+        count = 0
         for input_path in self.input_files:
+            # if count > 0: break
             # Extract Week Number
             match = re.search(r'w(\d{2})', input_path)
+            
             if not match: continue
             week_num = match.group(1)
             
@@ -65,5 +68,6 @@ class DataLoader:
             input_valid = RawTrackingSchema.validate(input_raw)
             output_valid = OutputTrackingSchema.validate(output_raw)
             
+            # count += 1
             # Yield the clean, validated data to the Orchestrator
             yield week_num, input_valid, output_valid
