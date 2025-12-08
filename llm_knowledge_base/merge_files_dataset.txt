@@ -183,6 +183,34 @@ By design, the output data excludes defenders more than ~8 yards from the landin
 Methodologically: “We extend classic pitch‑control / space‑dominance models by decomposing voids into a pre‑throw global component (scheme/alignment) and a post‑throw local component (ball‑in‑air reaction), using the competition’s partial‑tracking setup as a natural separation between the two.”
 
 Football‑wise: “This lets us say whether a big completion came from the call (large pre‑throw void), from execution after the throw (void expanded locally), or from defenders who bailed out bad structure (void collapsed locally), which current public Next Gen–style stats and prior Big Data Bowl work do not isolate this cleanl. 
+
+The "why" behind excluding speed from phase A. 
+
+By baking speed into Phase A, you "Double Count" it. You effectively say, "He is fast, so the play wasn't hard."
+
+You want to say the opposite: "The play WAS hard (wide open), and he solved it BECAUSE he is fast."
+
+
+Title: 
+Given the void at throw (context), here is how this defender’s chosen path changed the outcome, relative to what similar defenders typically achieve in the same situation 
+
+    "Given the void at throw (context)..."
+
+        Code: S_throw (Distance at Frame 1).
+
+        Concept: The "Mess" they inherited.
+
+    "...here is how this defender’s chosen path changed the outcome..."
+
+        Code: VIS (Void Improvement Score).
+
+        Concept: The "Cleanup" (Did they close the gap?).
+
+    "...relative to what similar defenders typically achieve..."
+
+        Code: CEOE (Closing Efficiency Over Expectation).
+
+        Concept: The "Benchmark" (Are they elite or just average?).
 THE IRRELEVANCE HYPOTHESIS TEST
 ===============================
 Hypothesis: Players are dropped in the Output file because they are far from the landing spot.

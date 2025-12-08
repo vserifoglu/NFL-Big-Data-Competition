@@ -1,6 +1,7 @@
 import pandera.pandas as pa
 from pandera.typing import Series
 
+# TODO: double check comments after modifications.
 
 class RawSuppSchema(pa.DataFrameModel):
     """
@@ -11,47 +12,39 @@ class RawSuppSchema(pa.DataFrameModel):
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     
-    # --- Plotting & Context ---
+    # --- Context ---
     week: Series[int] = pa.Field(coerce=True)
     home_team_abbr: Series[str]
     visitor_team_abbr: Series[str]
-    play_description: Series[str] = pa.Field(nullable=True)
     
     # --- Game State ---
     down: Series[int] = pa.Field(coerce=True, ge=1, le=4)
     yards_to_go: Series[int] = pa.Field(coerce=True)
     possession_team: Series[str]
-    defensive_team: Series[str]
+    yardline_side: Series[str] = pa.Field(nullable=True)
     yardline_number: Series[int] = pa.Field(ge=0, le=50) 
+    
+    # --- Win Probability (Used for filters) ---
     pre_snap_home_team_win_probability: Series[float] = pa.Field(nullable=True)
     pre_snap_visitor_team_win_probability: Series[float] = pa.Field(nullable=True)
 
-    # --- Logic Filters (Critical) ---
+    # --- Logic Filters ---
     play_nullified_by_penalty: Series[str] = pa.Field(nullable=True)
     dropback_type: Series[str] = pa.Field(nullable=True) 
-    play_action: Series[bool] = pa.Field(coerce=True, nullable=True)
-    
-    # --- Defensive Scheme ---
     team_coverage_man_zone: Series[str] = pa.Field(nullable=True)
     team_coverage_type: Series[str] = pa.Field(nullable=True) 
-    
-    # --- Results & Geometry ---
     pass_result: Series[str] = pa.Field(nullable=True) 
     pass_length: Series[int] = pa.Field(nullable=True)
-    pass_location_type: Series[str] = pa.Field(nullable=True) 
-    yards_gained: Series[int] = pa.Field(nullable=True)
-    expected_points_added: Series[float] = pa.Field(nullable=True)
     route_of_targeted_receiver: Series[str] = pa.Field(nullable=True)
 
     class Config:
         strict = 'filter' 
-        
+
 
 class RawTrackingSchema(pa.DataFrameModel):
     """
-    Validates 'input_wXX.csv' files (Pre-Throw / Full Play).
+    Validates 'input_wXX.csv' files (Pre-Throw).
     """
-    # --- Identifiers ---
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     frame_id: Series[int] = pa.Field(coerce=True, ge=1)
@@ -59,39 +52,33 @@ class RawTrackingSchema(pa.DataFrameModel):
 
     # --- Normalization Anchors ---
     play_direction: Series[str] 
-    absolute_yardline_number: Series[int] = pa.Field(ge=0, le=120)
+    absolute_yardline_number: Series[int] = pa.Field(ge=0, le=120, nullable=True)
     
     # --- Player Attributes ---
-    player_name: Series[str] = pa.Field(nullable=True)
-    
-    player_position: Series[str] = pa.Field(nullable=True)
-    player_side: Series[str] = pa.Field(nullable=True) 
     player_role: Series[str] = pa.Field(nullable=True)
+    player_position: Series[str] = pa.Field(nullable=True)
     
-    # --- Physics Vectors ---
+    # --- Physics Vectors (Raw) ---
     x: Series[float] = pa.Field(ge=0, nullable=True)
     y: Series[float] = pa.Field(ge=0, nullable=True)
     s: Series[float] = pa.Field(ge=0, nullable=True) 
-    a: Series[float] = pa.Field(ge=0, nullable=True) 
-    o: Series[float] = pa.Field(ge=0, nullable=True) 
-    dir: Series[float] = pa.Field(ge=0, nullable=True)
     
-    # --- Answer Key ---
+    # --- Targets ---
     ball_land_x: Series[float] = pa.Field(nullable=True)
     ball_land_y: Series[float] = pa.Field(nullable=True)
 
     class Config:
         strict = 'filter' 
-        
+
 
 class OutputTrackingSchema(pa.DataFrameModel):
     """
-    Validates 'output_wXX.csv' files (Post-Throw Frames).
-    Does NOT require speed/accel/dir.
+    Validates 'output_wXX.csv' files (Post-Throw).
+    Minimal schema since physics are missing.
     """
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
-    nfl_id: Series[int] = pa.Field(coerce=True, nullable=True)
+    nfl_id: Series[float] = pa.Field(coerce=True, nullable=True)
     frame_id: Series[int] = pa.Field(coerce=True)
     
     x: Series[float] = pa.Field(ge=0, nullable=True)
@@ -104,14 +91,15 @@ class OutputTrackingSchema(pa.DataFrameModel):
 class PreprocessedSchema(RawTrackingSchema, RawSuppSchema):
     """
     Validates the output of 'preprocessing.py'.
-    Inherits RawTracking + RawSupp.
-    Adds calculated fields from the ETL process.
+    Combined Schema + Derived Features.
     """
-    
     phase: Series[str] = pa.Field(isin=["pre_throw", "post_throw"])
-    los_x: Series[float] = pa.Field(nullable=True) # Calculated Line of Scrimmage
     
-    event: Series[str] = pa.Field(nullable=True) 
+    # [NEW] Field Logic Feature (0-100 scale)
+    yards_from_own_goal: Series[int] = pa.Field(ge=0, le=100, nullable=True)
+    
+    # [NEW] Win Probability of Possession Team (0-1)
+    possession_win_prob: Series[float] = pa.Field(ge=0, le=1, nullable=True)
 
     class Config:
         strict = 'filter'
@@ -120,53 +108,128 @@ class PreprocessedSchema(RawTrackingSchema, RawSuppSchema):
 class PhysicsSchema(PreprocessedSchema):
     """
     Validates the output of 'physics_engine.py'.
-    Inherits Preprocessed data and adds the Savitzky-Golay derived metrics.
+    Adds derived kinematics from Savitzky-Golay.
     """
-    # [NEW] Derived Physics
-    s_derived: Series[float] = pa.Field(nullable=True, coerce=True)
-    a_derived: Series[float] = pa.Field(nullable=True, coerce=True)
-
-    # 0-360 degrees
-    dir_derived: Series[float] = pa.Field(nullable=True, coerce=True) 
+    # Derived from X,Y deltas
+    s_derived: Series[float] = pa.Field(nullable=True, coerce=True) # Speed
+    a_derived: Series[float] = pa.Field(nullable=True, coerce=True) # Accel
+    
+    # Note: 'dir' and 'o' are REMOVED because we rely on closing vectors now.
     
     class Config:
         strict = 'filter'
 
 
-class FeatureEngineeredSchema(PhysicsSchema):
+class AggregationScoresSchema(pa.DataFrameModel):
     """
-    Validates the output of 'features.py' (Landmark Calculation).
-    Inherits PreprocessedSchema.
-    Adds Zone Assignments and Target Coordinates.
+    Validates the 'Score Card' subset merged onto the animation frames.
+    Ensures every frame knows the context (Void) and the result (Eraser Score).
     """
+    # Identifiers
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
 
-    # Angle from Player to Ball
-    dir_ideal: Series[float] = pa.Field(nullable=True, ge=0, le=360) 
+    # Phase A Metrics (Context)
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
 
-    # Deviation (Efficiency Error)
-    angle_diff: Series[float] = pa.Field(nullable=True, ge=0, le=180) 
+    # Phase B Metrics (Results)
+    vis_score: Series[float] = pa.Field(nullable=True)  
+    ceoe_score: Series[float] = pa.Field(nullable=True)
 
     class Config:
         strict = 'filter'
 
 
-class VoidDetectiontSchema(pa.DataFrameModel):
-    """
-    Validates the output of (Void Detection).
-    """
+class FullPlayAnimationSchema(PhysicsSchema, AggregationScoresSchema): 
+
+    class Config:
+        strict = 'filter'
+
+
+class ContextSchema(pa.DataFrameModel):
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
     
-    # Grouping Keys (REQUIRED for merging)
+    target_nfl_id: Series[float] = pa.Field(nullable=True)
+    nearest_def_nfl_id: Series[float] = pa.Field(nullable=True)
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True) 
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
+
+    class Config:
+        strict = 'filter'
+
+
+class EraserMetricsSchema(pa.DataFrameModel):
+    """
+    PHASE B: The Action.
+    One row per Play/Defender. Defines the closing efficiency.
+    """
     game_id: Series[int] = pa.Field(coerce=True)
     play_id: Series[int] = pa.Field(coerce=True)
     nfl_id: Series[float] = pa.Field(coerce=True)
     
-    # Calculation Results
-    reaction_time_frames: Series[float] = pa.Field(nullable=True) 
-    is_reaction_void: Series[bool]      
-    avg_pursuit_error: Series[float] = pa.Field(nullable=True) 
+    # S_arrival
+    dist_at_arrival: Series[float] = pa.Field() 
+    
+    # Total yards gained on target
+    distance_closed: Series[float] = pa.Field() 
+
+    # Yards per second toward target
+    avg_closing_speed: Series[float] = pa.Field() 
+    
+    # Void Improvement Score (S_throw - S_arrival)
+    vis_score: Series[float] = pa.Field() 
+
+    class Config:
+        strict = 'filter'
+
+
+class BenchMarkingSchema(pa.DataFrameModel):
+    """
+    Validates the Player Metadata (Static info) to be attached to the final report.
+    Used to select columns dynamically in the orchestrator.
+    """
+    # Keys
+    game_id: Series[int] = pa.Field(coerce=True)
+    play_id: Series[int] = pa.Field(coerce=True)
+    nfl_id: Series[float] = pa.Field(coerce=True)
+    
+    # Metadata
+    player_role: Series[str] = pa.Field()
+    player_position: Series[str] = pa.Field()
+    week: Series[int] = pa.Field(coerce=True) 
     
     class Config:
         strict = 'filter'
+
+
+class AnalysisReportSchema(pa.DataFrameModel):
+    """
+    Validates the Player Metadata (Static info) to be attached to the final report.
+    Used to select columns dynamically in the orchestrator.
+    """
+    game_id: Series[int]
+    play_id: Series[int]
+    nfl_id: Series[float]
+    
+    player_position: Series[str] = pa.Field(nullable=False) # Must exist for benchmarking
+    player_role: Series[str]
+    
+    dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+
+    # Context
+    void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
+    
+    # Metrics
+    vis_score: Series[float]
+    avg_closing_speed: Series[float]
+    
+    ceoe_score: Series[float] = pa.Field(nullable=False) # Should never be NaN
+
+    class Config:
+        strict = 'filter' 
 import os
 import glob
 import re
@@ -203,7 +266,6 @@ class DataLoader:
             
         df = pd.read_csv(self.supp_file, low_memory=False)
             
-        # VALIDATE (Strict Filter)
         return RawSuppSchema.validate(df)
 
     def stream_weeks(self) -> Generator[Tuple[str, pd.DataFrame, pd.DataFrame], None, None]:
@@ -254,61 +316,73 @@ class DataPreProcessor:
 
     def filter_context(self, supp_df):
         """
-        filter the supplementary dataframe.
+        Filters the supplementary dataframe and performs 'Lightweight Feature Engineering'.
+        Goal: Create the 'Base Subset' (Standard Football) without loading tracking data.
         """
 
-        # filter out low win probability to reduce outlier & unusual games.
+        # 1. Calculate Possession Win Probability
         supp_df['possession_win_prob'] = np.where(
             supp_df['possession_team'] == supp_df['home_team_abbr'],
             supp_df['pre_snap_home_team_win_probability'],
             supp_df['pre_snap_visitor_team_win_probability'],
         )
         
+        # 2. Calculate Normalized Field Position (0-100 Scale)
+        # Logic: If on own side, use number. If on opp side, use 100 - number.
+        supp_df['yards_from_own_goal'] = np.where(
+            supp_df['yardline_side'] == supp_df['possession_team'],
+            supp_df['yardline_number'],           
+            100 - supp_df['yardline_number']      
+        )
+
+
+        # valid mask filters
         valid_mask = (
             (supp_df['team_coverage_man_zone'].astype(str).str.contains('Zone', case=False, na=False)) &
             (supp_df['pass_result'].isin(['C', 'I', 'IN'])) &
             (supp_df['team_coverage_type'] != 'COVER_6_ZONE') &
-            (~supp_df['dropback_type'].isin(['SCRAMBLE', 'SCRAMBLE_ROLLOUT_LEFT', 'SCRAMBLE_ROLLOUT_RIGHT', 'QB_DRAW'])) &
+            (~supp_df['dropback_type'].str.upper().isin([
+                'SCRAMBLE', 'SCRAMBLE_ROLLOUT_LEFT', 'SCRAMBLE_ROLLOUT_RIGHT', 'QB_DRAW'])) &
             (supp_df['play_nullified_by_penalty'] != 'Y')
         )
 
-
+        # remove trick / cheap plays
         screen_shovel_mask = (
-            # Identify Screen Routes (Text Search)
+            # Text Search for Screens
             supp_df['route_of_targeted_receiver'].astype(str).str.upper().str.contains('SCREEN', na=False) | 
             
-            # Identify Behind-the-Line Passes.
-            # pass_length < 0 implies the ball was caught behind the LOS (Screens, Swings, Shovels).
-            supp_df['pass_length'] <= 0 | 
+            # Physics Check: Ball caught behind or at LOS (Shovels/Swings)
+            (supp_df['pass_length'] <= 0) | 
             
-            # 3. Identify 'Flat' routes that are also very short
-            # Some 'FLAT' routes are effectively check-downs/screens.
+            # Check-downs (Flat routes < 3 yards)
             (
                 (supp_df['route_of_targeted_receiver'].astype(str).str.upper() == 'FLAT') & 
                 (supp_df['pass_length'] < 3)
             )
-        
         )
         
+        # base situations
         base_situation_mask = (           
             # Standard Downs
             (supp_df['down'].isin([1, 2])) &
             
-            # Competitive Game (Win Prob between 20% and 80%)
+            # Competitive Game (Neutral Script)
             (supp_df['possession_win_prob'].between(0.20, 0.80)) & 
 
-            # Removes 1st & 20 (penalties) and 2nd & Long (sacks)
-            (supp_df['yards_to_go'] <= 10)
+            # On Schedule (Not 1st & 20 or 2nd & 18)
+            (supp_df['yards_to_go'] <= 10) &
+            
+            # We use our new engineered column here
+            (supp_df['yards_from_own_goal'].between(20, 80))
         )
         
-        # combine all masks.
         final_valid_mask = (
             valid_mask &
-            ~ screen_shovel_mask &
+            (~screen_shovel_mask) &
             base_situation_mask
         )
 
-        return supp_df[valid_mask].copy()
+        return supp_df[final_valid_mask].copy()
 
     def _stitch_tracking_data(self, input_df, output_df, valid_keys):
         """
@@ -329,7 +403,8 @@ class DataPreProcessor:
         output_df['event'] = None
         output_df.loc[output_df['frame_id'] == 1, 'event'] = 'pass_forward'
         
-        # Metadata Propagation
+        # TODO: move this to schema
+        # Metadata Propagation (Players missing in Output get this from Input)
         meta_cols = ['game_id', 'play_id', 'nfl_id', 'player_name', 'jersey_number', 'player_position', 
                      'player_role', 'player_side', 'play_direction', 'absolute_yardline_number', 
                      'ball_land_x', 'ball_land_y']
@@ -337,13 +412,14 @@ class DataPreProcessor:
         avail_cols = [c for c in meta_cols if c in input_df.columns]
         player_meta = input_df[avail_cols].drop_duplicates(subset=['game_id', 'play_id', 'nfl_id'])
         
-        # Frame Offset
+        # Frame Offset Calculation
         play_offsets = input_df.groupby(['game_id', 'play_id'])['frame_id'].max().reset_index()
         play_offsets.columns = ['game_id', 'play_id', 'offset']
         
         output_df = output_df.merge(player_meta, on=['game_id', 'play_id', 'nfl_id'], how='left')
         output_df = output_df.merge(play_offsets, on=['game_id', 'play_id'], how='left')
         
+        # Apply Offset
         output_df['frame_id'] = output_df['frame_id'] + output_df['offset'].fillna(0)
         output_df['phase'] = 'post_throw'
         
@@ -352,6 +428,9 @@ class DataPreProcessor:
         return df
 
     def _normalize_coordinates(self, df):
+        """
+        Standardizes field geometry to Left->Right drive direction.
+        """
         if 'play_direction' not in df.columns: return df
         mask = df['play_direction'].str.lower() == 'left'
         
@@ -364,6 +443,9 @@ class DataPreProcessor:
         return df
 
     def _clean_and_deduplicate(self, df):
+        """
+        Ensures strict temporal ordering and removes duplicate frames at the stitch point.
+        """
         df['phase_rank'] = df['phase'].apply(lambda x: 1 if x == 'pre_throw' else 2)        
         
         df = df.sort_values(['game_id', 'play_id', 'nfl_id', 'frame_id', 'phase_rank'])        
@@ -378,49 +460,34 @@ class DataPreProcessor:
         """
         valid_keys = set(zip(context_df.game_id, context_df.play_id))
 
-        # 1. Stitch
         week_df = self._stitch_tracking_data(input_df, output_df, valid_keys)
 
-        # 2. Merge Context
         week_df = week_df.merge(context_df, on=['game_id', 'play_id'], how='inner')
 
-        # 3. Normalize
         week_df = self._normalize_coordinates(week_df)
 
-        # 4. Features
         week_df['los_x'] = week_df['ball_land_x'] - week_df['pass_length']
         week_df['week'] = int(week_num)
 
-        # 5. Clean
         week_df = self._clean_and_deduplicate(week_df)
 
-        # 6. Validate Output Schema
         return self.output_schema.validate(week_df)
 
     def run(self, data_stream: Generator[Tuple[str, pd.DataFrame, pd.DataFrame], None, None], 
             raw_context_df: pd.DataFrame) -> pd.DataFrame:
         """
         MAIN ENTRY POINT.
-        1. Filters Context.
-        2. Consumes the data stream.
-        3. Processes week-by-week.
-        4. Returns final concatenated dataframe.
         """
         clean_context = self.filter_context(raw_context_df)
         
         processed_chunks: List[pd.DataFrame] = []
-        
         for week_num, input_df, output_df in data_stream:
-            # Open Field (Between the 20s, avoiding backed-up safety or redzone)
-            # (supp_df['absolute_yardline_number'].between(20, 90))
-            # input_df = input_df[input_df['absolute_yardline_number'].between(20, 90)]
-
+            
             clean_week_df = self.process_single_week(week_num, input_df, output_df, clean_context)
 
             if not clean_week_df.empty:
                 processed_chunks.append(clean_week_df)
 
-            # Explicit Memory Management
             del input_df, output_df
             gc.collect()
 
@@ -439,24 +506,22 @@ class PhysicsEngine:
 
     def derive_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Applies Savitzky-Golay filter to calculate s, a, and dir.
-        Expects a clean, sorted, normalized DataFrame.
+        Applies Savitzky-Golay filter to calculate generic Speed (s) and Acceleration (a).
+        REMOVED: Direction (dir) calculation, as we now use specific vectors in Phase B.
         """
+        # Ensure temporal ordering for the filter
         df = df.sort_values(['game_id', 'play_id', 'nfl_id', 'frame_id'])
         
         # SAVITZKY-GOLAY PARAMETERS
-        # Window = 7: Represents 0.7 seconds. Chosen to smooth sensor noise 
-        #             while preserving the sharp "cuts" of NFL athletes.
-        # Poly = 2:   Quadratic fit. Assumes constant acceleration within the 
-        #             window, which prevents overfitting to high-frequency noise.
-        WINDOW = 7
-        POLY = 2
+        WINDOW = 7 # 0.7 seconds
+        POLY = 2   # Quadratic fit
         
         def calculate_sg(group):
             # Short Track Handling
             if len(group) < WINDOW:
                 return pd.DataFrame({
-                    's_derived': np.nan, 'a_derived': np.nan, 'dir_derived': np.nan
+                    's_derived': np.nan, 
+                    'a_derived': np.nan
                 }, index=group.index)
             
             # 1. First Derivative (Velocity)
@@ -467,201 +532,237 @@ class PhysicsEngine:
             ax = savgol_filter(group['x'], window_length=WINDOW, polyorder=POLY, deriv=2, delta=0.1)
             ay = savgol_filter(group['y'], window_length=WINDOW, polyorder=POLY, deriv=2, delta=0.1)
             
-            # 3. Magnitudes
+            # 3. Magnitudes (Scalar)
             s = np.sqrt(vx**2 + vy**2)
-            a = np.sqrt(ax**2 + ay**2) # Magnitude is always positive
-            
-            # 4. Direction (Angle)
-            # Convert Math Angle (counter-clockwise from X) to NFL Angle (clockwise from Y)
-            angle_rad = np.arctan2(vy, vx)
-            angle_deg = np.degrees(angle_rad)
-            dir_val = (90 - angle_deg) % 360
-            
-            # 5. Noise Masking
-            # If speed is < 0.5 yds/s, direction is effectively random noise
-            s_clean = pd.Series(s, index=group.index)
-            dir_clean = pd.Series(dir_val, index=group.index)
-            a_clean = pd.Series(a, index=group.index)
-            
-            dir_clean = dir_clean.mask(s_clean < 0.5, np.nan)
+            a = np.sqrt(ax**2 + ay**2)
             
             return pd.DataFrame({
-                's_derived': s_clean,
-                'a_derived': a_clean,
-                'dir_derived': dir_clean
+                's_derived': s,
+                'a_derived': a
             }, index=group.index)
 
         # Apply grouping
+        # Only apply to players (nfl_id is not null)
         mask_players = df['nfl_id'].notna()
         
-        # This returns a DataFrame (physics_cols) indexed by the original df row index.
         physics_cols = df[mask_players].groupby(
-            ['game_id', 'play_id', 'nfl_id'], group_keys=False).apply(calculate_sg)
+            ['game_id', 'play_id', 'nfl_id'], group_keys=False).apply(calculate_sg, include_groups=False)
 
+        # Map back to original DataFrame
         df.loc[physics_cols.index, 's_derived'] = physics_cols['s_derived']
         df.loc[physics_cols.index, 'a_derived'] = physics_cols['a_derived']
-        df.loc[physics_cols.index, 'dir_derived'] = physics_cols['dir_derived']
 
         return self.output_schema.validate(df)
 import pandas as pd
 import numpy as np
-from schema import VoidDetectiontSchema
+from schema import ContextSchema
 
-class VoidDetector:
+class ContextEngine:
     def __init__(self):
-        self.output_schema = VoidDetectiontSchema
+        self.output_schema = ContextSchema
 
-    def generate_reaction_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_void_context(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Calculates the two core metrics (Reaction Time and Avg Error)
-        and aggregates frame-level data into a single row per player/play.
+        PHASE A: Calculates S_throw.
+        capture ALL players at the moment of the throw.
         """
-        # Filter: We only grade Defensive Coverage players in the Post-Throw phase
-        mask = (df['player_role'] == 'Defensive Coverage') & (df['phase'] == 'post_throw')
-        df_cov = df[mask].copy()
+        # 1. Filter for Pre-Throw phase
+        pre_throw_mask = df['phase'] == 'pre_throw'
+        df_pre = df[pre_throw_mask].copy()
+
+        # IDENTIFY THE SNAPSHOT FRAME
+        # we calculate the MAX frame_id for every play
+        last_frame_ids = df_pre.groupby(['game_id', 'play_id'])['frame_id'].transform('max')
         
-        # THE AGGREGATION ALGORITHM
-        def analyze_reaction(group):
-            # Ensure sorted by time (guaranteed by the previous pipeline steps)
+        # We keep rows where the frame_id matches the last frame of that play
+        throw_frames = df_pre[df_pre['frame_id'] == last_frame_ids].copy()
+
+        # TODO: delete
+        # avg_players = throw_frames.groupby(['game_id', 'play_id']).size().mean()
+        # print(f"   DEBUG: Avg players captured per snapshot: {avg_players:.1f} (Should be > 1)")
+
+        # Split into Target vs. Defenders
+        targets = throw_frames[throw_frames['player_role'].astype(str).str.strip() == 'Targeted Receiver'][
+            ['game_id', 'play_id', 'nfl_id', 'x', 'y', 'week']
+        ].rename(columns={'nfl_id': 'target_nfl_id', 'x': 't_x', 'y': 't_y'})
+
+        defenders = throw_frames[throw_frames['player_role'].astype(str).str.strip() == 'Defensive Coverage'][
+            ['game_id', 'play_id', 'nfl_id', 'x', 'y']
+        ].rename(columns={'nfl_id': 'def_nfl_id', 'x': 'd_x', 'y': 'd_y'})
+
+        # Cartesian Product (Merge)
+        merged = defenders.merge(targets, on=['game_id', 'play_id'], how='inner')
+
+        # Calculate Euclidean Distance
+        merged['dist'] = np.sqrt(
+            (merged['d_x'] - merged['t_x'])**2 + 
+            (merged['d_y'] - merged['t_y'])**2
+        )
+
+        # Find the Nearest Neighbor
+        min_dists = merged.loc[merged.groupby(['game_id', 'play_id'])['dist'].idxmin()]
+
+        context_df = min_dists[['game_id', 'play_id', 'week', 'target_nfl_id', 'def_nfl_id', 'dist']].copy()
+        
+        context_df = context_df.rename(columns={
+            'def_nfl_id': 'nearest_def_nfl_id', 
+            'dist': 'dist_at_throw'
+        })
+
+        # Apply Classification Labels
+        conditions = [
+            (context_df['dist_at_throw'] > 5.0),
+            (context_df['dist_at_throw'] < 2.0)
+        ]
+        choices = ['High Void', 'Tight Window']
+        context_df['void_type'] = np.select(conditions, choices, default='Neutral')
+
+        return self.output_schema.validate(context_df)
+import pandas as pd
+import numpy as np
+from schema import EraserMetricsSchema
+
+class EraserEngine:
+    def __init__(self):
+        self.output_schema = EraserMetricsSchema
+
+    def calculate_erasure(self, df: pd.DataFrame, context_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        PHASE B: The Action.
+        Calculates how distinct defenders close space on the targeted receiver.
+        """
+        # Filter for Post-Throw Phase only
+        df_post = df[df['phase'] == 'post_throw'].copy()
+        
+        # Isolate the Targeted Receiver's path
+        # We need the receiver's X,Y for every frame to compare against defenders
+        targets = df_post[df_post['player_role'] == 'Targeted Receiver'][
+            ['game_id', 'play_id', 'frame_id', 'x', 'y']
+        ].rename(columns={'x': 't_x', 'y': 't_y'})
+
+        # Isolate Defenders
+        defenders = df_post[df_post['player_role'] == 'Defensive Coverage'][
+            ['game_id', 'play_id', 'nfl_id', 'frame_id', 'x', 'y']
+        ]
+
+        # Merge Defender + Target on (Game, Play, Frame)
+        merged = defenders.merge(targets, on=['game_id', 'play_id', 'frame_id'], how='inner')
+
+        # Calculate Dynamic Separation (Distance to Target)
+        merged['dist_to_target'] = np.sqrt(
+            (merged['x'] - merged['t_x'])**2 + 
+            (merged['y'] - merged['t_y'])**2
+        )
+
+        def grade_defender(group):
             group = group.sort_values('frame_id')
             
-            # Mask frames where the defender is 'Locked In'
-            locked_in_mask = group['angle_diff'] < 45
+            # A. Get Start and End Distances
+            d_start = group['dist_to_target'].iloc[0] # Distance at Throw
+            d_end = group['dist_to_target'].iloc[-1]  # Distance at Arrival
             
-            if not locked_in_mask.any():
-                reaction_frames = len(group)
-            else:
-                # Find the frame ID of the first time they locked in
-                first_lock_idx = locked_in_mask.idxmax()
-                first_frame = group.loc[first_lock_idx, 'frame_id']
-                start_frame = group['frame_id'].min() # Frame ID of the throw (usually 1)
-                
-                # Reaction time is measured in frame counts
-                reaction_frames = first_frame - start_frame
+            # B. Metric 1: VIS (Void Improvement Score)
+            # Positive = Good (Closed gap), Negative = Bad (Lost gap)
+            vis = d_start - d_end
             
-            avg_error = group['angle_diff'].mean()
+            # C. Metric 2: Closing Speed (Rate of Change)
+            # Calculate distance change per frame
+            # We multiply by -1 because getting closer (dist going down) is positive speed
+            dist_change = group['dist_to_target'].diff() * -1
+            
+            # Convert to Yards/Second (1 frame = 0.1s)
+            speeds = dist_change * 10 
+            avg_speed = speeds.mean()
             
             return pd.Series({
-                'reaction_time_frames': reaction_frames,
-                'avg_pursuit_error': avg_error
+                'dist_at_arrival': d_end,
+                'distance_closed': max(0, vis),
+                'vis_score': vis,
+                'avg_closing_speed': avg_speed
             })
 
-        results_agg = df_cov.groupby(
-            ['game_id', 'play_id', 'nfl_id'], group_keys=False).apply(analyze_reaction)
-        
-        # CLEANUP & VOID FLAGGING
-        results = results_agg.reset_index() 
+        # Apply grouping per player per play
+        metrics = merged.groupby(['game_id', 'play_id', 'nfl_id']).apply(grade_defender).reset_index()
 
-        # 6 frames = 0.6 seconds. If reaction time is greater than 0.6s, it's a Void.
-        results['is_reaction_void'] = results['reaction_time_frames'] > 4
-        results['nfl_id'] = results['nfl_id'].astype(float)
-
-        # Validate the output before passing it back
-        return self.output_schema.validate(results)
-import os
-from datetime import datetime
+        return self.output_schema.validate(metrics)
 import pandas as pd
-import gc
+import numpy as np
+from schema import BenchMarkingSchema, AnalysisReportSchema
 
-from load_data import DataLoader
-from data_preprocessor import DataPreProcessor
-from physics_engine import PhysicsEngine
-from feature_engineering import VectorFeatureEngine
-from void_detector import VoidDetector
 
-def run_full_pipeline():
-    start_time = datetime.now()
+# TODO: add more comments on critical parts.
+class BenchmarkingEngine:
+    def __init__(self):
+        self.bench_schema = BenchMarkingSchema
+        self.report_schema = AnalysisReportSchema
 
-    DATA_DIR = 'data/train'
-    SUPP_FILE = 'data/supplementary_data.csv'
-    OUTPUT_DIR = 'data/processed'
+    def calculate_ceoe(self, df_metrics: pd.DataFrame, 
+                       df_context: pd.DataFrame, df_physics: pd.DataFrame) -> pd.DataFrame:
+        
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+        meta_cols = list(self.bench_schema.to_schema().columns.keys())
+        df_meta = self.bench_schema.validate(df_physics[meta_cols])
+            
+        df_meta = df_meta.drop_duplicates()
 
-    # 1. Loading & Streaming
-    print("[1/6] Loading Data Streams...")
-    loader = DataLoader(DATA_DIR, SUPP_FILE)
-    raw_supp = loader.load_supplementary()
-    raw_tracking = loader.stream_weeks()
-    
-    # 2. PREPROCESSING (Clean, Stitch, Normalize)
-    print("[2/6] Preprocessing & Stitching frames...")
-    processor = DataPreProcessor()
-    df_clean = processor.run(
-        data_stream=raw_tracking, 
-        raw_context_df=raw_supp
-    )
+        df_final = df_metrics.merge(df_meta, on=['game_id', 'play_id', 'nfl_id'], how='left')
+            
+        df_final = df_final.merge(
+            df_context[['game_id', 'play_id', 'void_type', 'dist_at_throw']], 
+            on=['game_id', 'play_id'], 
+            how='left'
+        )
 
-    # print(df_clean.shape)
-    # return
-    # 3. PHYSICS ENGINE (Derive S, A, Dir)
-    print("[3/6] Running Physics Engine (Savitzky-Golay)...")
-    physics_engine = PhysicsEngine()
-    df_physics = physics_engine.derive_metrics(df_clean)
-    
-    # Explicit memory cleanup
-    del df_clean
-    gc.collect() 
+        benchmarks = df_final.groupby(['player_position', 'void_type'])['avg_closing_speed'].transform('mean')
+        df_final['ceoe_score'] = df_final['avg_closing_speed'] - benchmarks
+        df_final['ceoe_score'] = df_final['ceoe_score'].fillna(0.0)
+        
+        return self.report_schema.validate(df_final)
+import os
+import pandas as pd
+from schema import AnalysisReportSchema, AggregationScoresSchema, FullPlayAnimationSchema
 
-    # 4. VECTOR ENGINEERING (Calculate Ideal Vector)
-    print("[4/6] Calculating Pursuit Vectors...")
-    vector_engine = VectorFeatureEngine()
-    df_features = vector_engine.calculate_pursuit_vectors(df_physics)
-    
-    # 5. METRICS (Aggregate to Player/Play Level)
-    print("[5/6] Detecting Reaction Voids...")
-    void_detector = VoidDetector()
-    df_metrics = void_detector.generate_reaction_metrics(df_features)
+class DataExporter:
+    def __init__(self, output_dir: str):
+        self.output_dir = output_dir
+        self.report_schema = AnalysisReportSchema
+        self.animation_schema = AggregationScoresSchema
+        self.full_animation = FullPlayAnimationSchema
 
-    print("[6/6] Reconciling Context and Exporting...")
+    def export_results(self, df_summary: pd.DataFrame, df_frames: pd.DataFrame):
+        """
+        PHASE D: EXPORT
+        1. Validates & Saves the Analytical Report.
+        2. Validates & Merges Scores for Animation.
+        3. Saves the Master Animation File.
+        """
+        print(f"   -> Output Directory: {self.output_dir}")
 
-    # We grab essential play/player context from the massive frame file (df_features)
-    CONTEXT_COLUMNS = [
-        'game_id', 'play_id', 'nfl_id', 'player_name', 'player_position', 
-        'week', 'down', 'yards_to_go', 'pass_result', 'expected_points_added'
-    ]
-    # We drop duplicates to get one row per player/play, which is safe since context is constant
-    context_lookup = df_features[CONTEXT_COLUMNS].drop_duplicates(subset=['game_id', 'play_id', 'nfl_id'])
-    
-    # B. Merge 1: Create the FINAL Analytical Summary Report
-    # Merge metrics with full context (week, player name, EPA, etc.)
-    df_summary = df_metrics.merge(
-        context_lookup, 
-        on=['game_id', 'play_id', 'nfl_id'], 
-        how='left'
-    )
-    
-    # Final EPA/Punishment Calculation (Now that we have expected_points_added)
-    df_summary['damage_epa'] = df_summary['expected_points_added'].clip(lower=0).fillna(0.0)
-    df_summary['is_punished'] = df_summary['damage_epa'] > 0
-    df_summary = df_summary.drop(columns=['expected_points_added'])
-    
-    summary_path = os.path.join(OUTPUT_DIR, 'reaction_analysis_summary.csv')
-    df_summary.to_csv(summary_path, index=False)
-    print(f"   -> Saved Analytical Report to {summary_path}")
+        print(df_summary.columns, "summ")
+        # validate report summary
+        self.report_schema.validate(df_summary)
 
-    # C. Merge 2: Create the Animation Master File
-    # We merge the final flags (is_reaction_void, etc.) back onto the frame data (df_features)
-    # The dataframe will contain all frame-level data (x, y, s_derived, angle_diff) + the final flag
-    animation_cols = ['game_id', 'play_id', 'nfl_id', 'is_reaction_void', 'is_punished', 'damage_epa']
-    flags_to_merge = df_summary[animation_cols]
-    
-    df_animation = df_features.merge(
-        flags_to_merge, 
-        on=['game_id', 'play_id', 'nfl_id'], 
-        how='left'
-    )
-    
-    # Final cleanup for animation NAs (offense/ball)
-    df_animation['is_reaction_void'] = df_animation['is_reaction_void'].fillna(False)
-    df_animation['is_reaction_void'] = df_animation['is_reaction_void'].astype(bool)
+        summary_path = os.path.join(self.output_dir, 'eraser_analysis_summary.csv')
+        df_summary.to_csv(summary_path, index=False)
+        print(f"   -> Saved Eraser Analysis Report to {summary_path}")
 
-    final_path = os.path.join(OUTPUT_DIR, 'master_animation_data.csv')
-    df_animation.to_csv(final_path, index=False)
-    print(f"   -> Saved Animation Master File to {final_path}")
-    
-    duration = datetime.now() - start_time
-    print(f"🏁 PIPELINE FINISHED in {duration}")
+        # Define the subset of columns to attach to the visualizer
+        score_cols = list(self.animation_schema.to_schema().columns.keys())
+        flags_to_merge = self.animation_schema.validate(df_summary[score_cols])
 
-if __name__ == "__main__":
-    run_full_pipeline()
+        # MERGE: Left join the scores onto the massive physics dataframe
+        # This repeats the score for every frame of the play
+        df_animation = df_frames.merge(
+            flags_to_merge, 
+            on=['game_id', 'play_id', 'nfl_id'], 
+            how='left'
+        )
+        
+        print(df_animation.columns, "anima")
+        # validate all animation data points 
+        self.full_animation.validate(df_animation)
+
+        final_path = os.path.join(self.output_dir, 'master_animation_data.csv')
+        df_animation.to_csv(final_path, index=False)
+        
+        print(f"   -> Saved Animation Master File to {final_path}")
