@@ -55,6 +55,7 @@ class EraserEngine:
             avg_speed = speeds.mean()
             
             return pd.Series({
+                'p_dist_at_throw': d_start,
                 'dist_at_arrival': d_end,
                 'distance_closed': max(0, vis),
                 'vis_score': vis,

@@ -36,6 +36,8 @@ class RawSuppSchema(pa.DataFrameModel):
     pass_result: Series[str] = pa.Field(nullable=True) 
     pass_length: Series[int] = pa.Field(nullable=True)
     route_of_targeted_receiver: Series[str] = pa.Field(nullable=True)
+    yards_gained: Series[int] = pa.Field(coerce=True, nullable=True)
+    expected_points_added: Series[float] = pa.Field(coerce=True, nullable=True)
 
     class Config:
         strict = 'filter' 
@@ -170,6 +172,8 @@ class EraserMetricsSchema(pa.DataFrameModel):
     play_id: Series[int] = pa.Field(coerce=True)
     nfl_id: Series[float] = pa.Field(coerce=True)
     
+    p_dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+    
     # S_arrival
     dist_at_arrival: Series[float] = pa.Field() 
     
@@ -200,7 +204,13 @@ class BenchMarkingSchema(pa.DataFrameModel):
     player_role: Series[str] = pa.Field()
     player_position: Series[str] = pa.Field()
     week: Series[int] = pa.Field(coerce=True) 
-    
+    down: Series[int] = pa.Field(coerce=True)
+    team_coverage_type: Series[str]
+    pass_result: Series[str] = pa.Field(nullable=True)
+    yards_gained: Series[int] = pa.Field(coerce=True, nullable=True)
+    pass_length: Series[int] = pa.Field(coerce=True, nullable=True)
+    expected_points_added: Series[float] = pa.Field(coerce=True, nullable=True)
+
     class Config:
         strict = 'filter'
 
@@ -210,22 +220,31 @@ class AnalysisReportSchema(pa.DataFrameModel):
     Validates the Player Metadata (Static info) to be attached to the final report.
     Used to select columns dynamically in the orchestrator.
     """
+    # keys
     game_id: Series[int]
     play_id: Series[int]
     nfl_id: Series[float]
     
+    # Meta
     player_position: Series[str] = pa.Field(nullable=False) # Must exist for benchmarking
     player_role: Series[str]
-    
+    team_coverage_type: Series[str]
+    down: Series[int]
+    pass_result: Series[str] = pa.Field(nullable=True)
     dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
     dist_at_arrival: Series[float] = pa.Field(ge=0, nullable=True)
+    yards_gained: Series[int] = pa.Field(coerce=True, nullable=True)
+    pass_length: Series[int] = pa.Field(coerce=True, nullable=True)
+    expected_points_added: Series[float] = pa.Field(coerce=True, nullable=True)
+
     # Context
     void_type: Series[str] = pa.Field(isin=["High Void", "Tight Window", "Neutral"], nullable=True)
     
     # Metrics
     vis_score: Series[float]
     avg_closing_speed: Series[float]
-    
+    p_dist_at_throw: Series[float] = pa.Field(ge=0, nullable=True)
+
     ceoe_score: Series[float] = pa.Field(nullable=False) # Should never be NaN
 
     class Config:

@@ -18,7 +18,6 @@ class DataExporter:
         """
         print(f"   -> Output Directory: {self.output_dir}")
 
-        print(df_summary.columns, "summ")
         # validate report summary
         self.report_schema.validate(df_summary)
 
@@ -38,7 +37,6 @@ class DataExporter:
             how='left'
         )
         
-        print(df_animation.columns, "anima")
         # validate all animation data points 
         self.full_animation.validate(df_animation)
 

@@ -11,11 +11,10 @@ class BenchmarkingEngine:
 
     def calculate_ceoe(self, df_metrics: pd.DataFrame, 
                        df_context: pd.DataFrame, df_physics: pd.DataFrame) -> pd.DataFrame:
-        
 
         meta_cols = list(self.bench_schema.to_schema().columns.keys())
         df_meta = self.bench_schema.validate(df_physics[meta_cols])
-            
+
         df_meta = df_meta.drop_duplicates()
 
         df_final = df_metrics.merge(df_meta, on=['game_id', 'play_id', 'nfl_id'], how='left')
