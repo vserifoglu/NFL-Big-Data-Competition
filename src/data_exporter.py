@@ -18,10 +18,9 @@ class DataExporter:
         """
         print(f"   -> Output Directory: {self.output_dir}")
 
+        print(df_summary.columns, "summ")
         # validate report summary
-        print(df_summary.columns, "sum")
         self.report_schema.validate(df_summary)
-        print(df_summary.columns, "sum1")
 
         summary_path = os.path.join(self.output_dir, 'eraser_analysis_summary.csv')
         df_summary.to_csv(summary_path, index=False)
@@ -39,6 +38,7 @@ class DataExporter:
             how='left'
         )
         
+        print(df_animation.columns, "anima")
         # validate all animation data points 
         self.full_animation.validate(df_animation)
 

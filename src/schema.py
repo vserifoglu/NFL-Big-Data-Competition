@@ -141,10 +141,12 @@ class AggregationScoresSchema(pa.DataFrameModel):
     class Config:
         strict = 'filter'
 
+
 class FullPlayAnimationSchema(PhysicsSchema, AggregationScoresSchema): 
 
     class Config:
         strict = 'filter'
+
 
 class ContextSchema(pa.DataFrameModel):
     game_id: Series[int] = pa.Field(coerce=True)
@@ -170,7 +172,7 @@ class EraserMetricsSchema(pa.DataFrameModel):
     
     # S_arrival
     dist_at_arrival: Series[float] = pa.Field() 
-
+    
     # Total yards gained on target
     distance_closed: Series[float] = pa.Field() 
 
@@ -179,9 +181,6 @@ class EraserMetricsSchema(pa.DataFrameModel):
     
     # Void Improvement Score (S_throw - S_arrival)
     vis_score: Series[float] = pa.Field() 
-    
-    # Closing Efficiency Over Expectation
-    ceoe_score: Series[float] = pa.Field(nullable=True) 
 
     class Config:
         strict = 'filter'

@@ -56,7 +56,7 @@ class EraserEngine:
             
             return pd.Series({
                 'dist_at_arrival': d_end,
-                'distance_closed': max(0, vis), # Floor at 0 for "Total Closed"
+                'distance_closed': max(0, vis),
                 'vis_score': vis,
                 'avg_closing_speed': avg_speed
             })
@@ -64,13 +64,4 @@ class EraserEngine:
         # Apply grouping per player per play
         metrics = merged.groupby(['game_id', 'play_id', 'nfl_id']).apply(grade_defender).reset_index()
 
-        # We bring in the S_throw (dist_at_throw) from Phase A to complete the dataset
-        final_df = metrics.merge(
-            context_df[['game_id', 'play_id', 'dist_at_throw']], 
-            on=['game_id', 'play_id'], 
-            how='left'
-        )
-        
-        # Placeholder for CEOE
-        final_df['ceoe_score'] = np.nan
-        return self.output_schema.validate(final_df)
+        return self.output_schema.validate(metrics)
