@@ -8,7 +8,7 @@ def main():
     # PATHS
     SUMMARY = "data/processed/eraser_analysis_summary.csv"
     ANIMATION = "data/processed/master_animation_data.csv"
-    OUTPUT = "data/visuals_final"
+    OUTPUT = "static/visuals"
 
     # Finds the 4 Archetypes automatically based on your strict logic
     print("\n--- STEP 1: CASTING ARCHETYPES ---")
@@ -23,11 +23,12 @@ def main():
         else:
             print(f"   -> {role}: [NO CANDIDATE FOUND]")
 
-    # Generates Figures 1, 2, 3
+    # Viz
     viz = StoryVisualEngine(SUMMARY, ANIMATION, OUTPUT)
     viz.plot_eraser_landscape(cast_dict) 
     viz.plot_race_charts(cast_dict)
     viz.plot_coverage_heatmap()
+    viz.plot_effort_impact_chart()  # NEW: EPA/YAC Impact Chart
 
     # Animation
     animator = AnimationEngine(SUMMARY, ANIMATION, OUTPUT)
@@ -40,7 +41,6 @@ def main():
         eraser_id=eraser_meta['nfl_id'], 
         filename="Figure_4_Eraser_Highlight.gif" 
     )
-
     print("\n=== VISUALIZATION COMPLETE ===")
 
 if __name__ == "__main__":

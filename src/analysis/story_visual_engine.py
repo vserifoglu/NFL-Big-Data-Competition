@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import matplotlib.patches as patches
+from scipy.interpolate import UnivariateSpline
 
 # Set style for professional report visuals
 sns.set_theme(style="whitegrid", context="talk")
@@ -107,7 +108,7 @@ class StoryVisualEngine:
         """
         print("   [VizGen] Generating V2: Race Charts...")
         
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12), sharey=True)
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))  # Removed sharey=True for independent axes
         axes = axes.flatten()
         quad_order = ['Eraser', 'Lockdown', 'Liability', 'Lost Step']
 
@@ -151,34 +152,114 @@ class StoryVisualEngine:
             merged['dist'] = np.sqrt((merged['x_d'] - merged['x_t'])**2 + (merged['y_d'] - merged['y_t'])**2)
             merged['time_sec'] = (merged['frame_id'] - merged['frame_id'].min()) * 0.1
 
-            # PLOT LOGIC
-            # 1. Line & Fill
-            sns.lineplot(data=merged, x='time_sec', y='dist', ax=ax, lw=4, color=color, alpha=0.9)
-            ax.fill_between(merged['time_sec'], merged['dist'], 0, color=color, alpha=0.1)
+            # Apply spline smoothing to reduce tracking noise (s=50 recommended balance)
+            time_arr = merged['time_sec'].values
+            dist_arr = merged['dist'].values
+            
+            # Spline needs at least 4 points and unique x values
+            if len(time_arr) >= 4:
+                try:
+                    spline = UnivariateSpline(time_arr, dist_arr, s=50)
+                    smooth_dist = spline(time_arr)
+                except:
+                    smooth_dist = dist_arr  # Fallback to raw if spline fails
+            else:
+                smooth_dist = dist_arr
+            
+            merged['smooth_dist'] = smooth_dist
+            
+            # Calculate axis limits early (needed for annotations)
+            max_dist = merged['smooth_dist'].max()
+            max_time = merged['time_sec'].max()
 
-            # 2. Markers
+            # PLOT LOGIC
+            # 1. Contested Zone Shading (0-1.5 yards) - light gray background
+            ax.axhspan(0, 1.5, color='#d5d5d5', alpha=0.4, zorder=0)
+            ax.text(max_time * 0.95, 0.75, 'CONTESTED\nZONE', ha='right', va='center',
+                   fontsize=8, color='#666666', style='italic', alpha=0.8)
+            
+            # 2. Smoothed Line & Fill
+            ax.plot(merged['time_sec'], merged['smooth_dist'], lw=4, color=color, alpha=0.9)
+            ax.fill_between(merged['time_sec'], merged['smooth_dist'], 0, color=color, alpha=0.1)
+
+            # 3. Markers (use smoothed values for consistency)
             start = merged.iloc[0]
             end = merged.iloc[-1]
             
-            ax.scatter(start['time_sec'], start['dist'], color=color, s=150, marker='o', zorder=5, edgecolors='white', lw=2)
-            ax.annotate('THROW', (start['time_sec'], start['dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
+            ax.scatter(start['time_sec'], start['smooth_dist'], color=color, s=150, marker='o', zorder=5, edgecolors='white', lw=2)
+            ax.annotate('THROW', (start['time_sec'], start['smooth_dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
 
-            ax.scatter(end['time_sec'], end['dist'], color=color, s=150, marker='X', zorder=5, edgecolors='white', lw=2)
-            ax.annotate('ARRIVAL', (end['time_sec'], end['dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
+            ax.scatter(end['time_sec'], end['smooth_dist'], color=color, s=150, marker='X', zorder=5, edgecolors='white', lw=2)
+            ax.annotate('ARRIVAL', (end['time_sec'], end['smooth_dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
 
-            # Formatting
+            # 4. Closing Rate annotation (yards closed per second)
+            flight_time = end['time_sec'] - start['time_sec']
+            closing_rate = (start['smooth_dist'] - end['smooth_dist']) / flight_time if flight_time > 0 else 0
+            rate_sign = "+" if closing_rate < 0 else "−"  # Negative = opening up, Positive = closing
+            
+            # Position rate annotation at midpoint of trajectory
+            mid_idx = len(merged) // 2
+            mid_time = merged.iloc[mid_idx]['time_sec']
+            mid_dist = merged.iloc[mid_idx]['smooth_dist']
+            
+            if quad_name in ['Eraser', 'Lockdown']:
+                # Show closing rate for closers
+                ax.annotate(f'{rate_sign}{abs(closing_rate):.1f} yds/sec', 
+                           (mid_time, mid_dist), xytext=(10, -15), textcoords='offset points',
+                           fontsize=10, fontweight='bold', color=color,
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor=color, alpha=0.8),
+                           arrowprops=dict(arrowstyle='->', color=color, lw=1.5))
+            
+            # 5. Decision Point markers for Liability & Lost Step (find inflection point)
+            if quad_name in ['Liability', 'Lost Step']:
+                # Find the minimum point (where trajectory changes direction)
+                smooth_arr = merged['smooth_dist'].values
+                min_idx = np.argmin(smooth_arr)
+                
+                # Only mark if it's not at the start or end (true inflection)
+                if 2 < min_idx < len(smooth_arr) - 2:
+                    inflection_time = merged.iloc[min_idx]['time_sec']
+                    inflection_dist = smooth_arr[min_idx]
+                    
+                    # Decision point marker
+                    ax.scatter(inflection_time, inflection_dist, color='#e67e22', s=200, 
+                              marker='o', zorder=6, edgecolors='white', lw=2)
+                    
+                    label = "Lost leverage" if quad_name == 'Liability' else "Lost balance"
+                    ax.annotate(f'⚠ {label}', (inflection_time, inflection_dist), 
+                               xytext=(8, 12), textcoords='offset points',
+                               fontsize=9, fontweight='bold', color='#c0392b',
+                               bbox=dict(boxstyle='round,pad=0.2', facecolor='#fdebd0', edgecolor='#e67e22', alpha=0.9))
+            
+            # Store flight time for bottom annotation
+            play_meta['flight_time'] = flight_time
+            
+            # Formatting with dynamic limits
             ax.axhline(1.5, color='gray', linestyle=':', lw=2)
             ax.axhline(0, color='black', lw=1)
-            ax.set_ylim(-0.5, 18)
-            ax.set_xlim(0, merged['time_sec'].max() + 0.5)
+            ax.set_ylim(-0.5, max(max_dist * 1.15, 5))  # 15% padding, minimum 5 yards
+            ax.set_xlim(0, max_time + 0.3)  # Small padding on x-axis
             ax.grid(True, alpha=0.3)
             
             if i in [2, 3]: ax.set_xlabel('Seconds After Throw', fontsize=12, fontweight='bold')
             if i in [0, 2]: ax.set_ylabel('Separation (Yards)', fontsize=12, fontweight='bold')
 
         # Global Legend
-        fig.legend(handles=legend_elements, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.05), frameon=False, fontsize=11)
-        plt.tight_layout()
+        fig.legend(handles=legend_elements, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.02), frameon=False, fontsize=11)
+        
+        # Flight Time annotation at bottom
+        flight_parts = []
+        for quad_name in quad_order:
+            meta = cast_dict.get(quad_name)
+            if meta and 'flight_time' in meta:
+                flight_parts.append(f"{quad_name}: {meta['flight_time']:.1f}s")
+        
+        if flight_parts:
+            flight_text = "Ball Flight Time — " + " | ".join(flight_parts)
+            fig.text(0.5, -0.06, flight_text, ha='center', va='top', fontsize=10, 
+                    color='#555555', style='italic')
+        
+        plt.tight_layout(rect=[0, 0.02, 1, 1])  # Leave room for bottom annotations
         
         output_path = os.path.join(self.output_dir, 'V2_Race_Charts.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -231,3 +312,144 @@ class StoryVisualEngine:
         output_path = os.path.join(self.output_dir, 'V3_Coverage_Heatmap.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
+
+    # =========================================
+    # VISUAL 4: EPA/YAC IMPACT CHART
+    # =========================================
+    def plot_effort_impact_chart(self):
+        """
+        Slope chart showing Effort → Outcome (EPA/YAC saved).
+        Ties the story together: Context → Effort → Result.
+        """
+        print("   [VizGen] Generating V4: Effort Impact Chart...")
+        df = self.summary_df.copy()
+        
+        # 1. Filter for Completions Only (where damage occurs)
+        completed = df[df['pass_result'] == 'C'].copy()
+        
+        if completed.empty:
+            print("      [!] Skipping Impact Chart: No completions found.")
+            return
+        
+        # 2. Derive YAC
+        completed['yac'] = completed['yards_gained'] - completed['pass_length']
+        
+        # 3. Create Start Distance bands
+        dist_bins = [0, 3, 6, 10, 100]
+        dist_labels = ['Tight\n(0-3 yds)', 'Medium\n(3-6 yds)', 'High Void\n(6-10 yds)', 'Exempt\n(10+ yds)']
+        completed['start_band'] = pd.cut(completed['p_dist_at_throw'], bins=dist_bins, labels=dist_labels)
+        
+        # 4. Calculate VIS quartiles WITHIN each start band
+        def get_quartile_label(group):
+            q25 = group['vis_score'].quantile(0.25)
+            q75 = group['vis_score'].quantile(0.75)
+            conditions = [
+                group['vis_score'] <= q25,
+                group['vis_score'] >= q75
+            ]
+            choices = ['Low Effort', 'High Effort']
+            group['effort_bucket'] = np.select(conditions, choices, default='Middle')
+            return group
+        
+        completed = completed.groupby('start_band', group_keys=False, observed=False).apply(get_quartile_label)
+        
+        # 5. Filter to only Q1 and Q4 for clean comparison
+        extremes = completed[completed['effort_bucket'].isin(['Low Effort', 'High Effort'])]
+        
+        # 6. Aggregate by band and effort
+        impact_data = extremes.groupby(['start_band', 'effort_bucket'], observed=False).agg(
+            avg_epa=('expected_points_added', 'mean'),
+            avg_yac=('yac', 'mean'),
+            count=('play_id', 'count')
+        ).reset_index()
+        
+        # 7. Create the figure with two subplots (EPA and YAC)
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+        
+        bands = ['Tight\n(0-3 yds)', 'Medium\n(3-6 yds)', 'High Void\n(6-10 yds)', 'Exempt\n(10+ yds)']
+        x_positions = np.arange(len(bands))
+        
+        for ax_idx, (metric, title, ylabel) in enumerate([
+            ('avg_epa', 'EPA Impact: Effort Saves Points', 'Expected Points Added'),
+            ('avg_yac', 'YAC Impact: Effort Limits Damage', 'Yards After Catch')
+        ]):
+            ax = axes[ax_idx]
+            
+            # Get data for each effort level
+            low_effort = []
+            high_effort = []
+            savings = []
+            
+            for band in bands:
+                low_row = impact_data[(impact_data['start_band'] == band) & (impact_data['effort_bucket'] == 'Low Effort')]
+                high_row = impact_data[(impact_data['start_band'] == band) & (impact_data['effort_bucket'] == 'High Effort')]
+                
+                low_val = low_row[metric].values[0] if not low_row.empty else np.nan
+                high_val = high_row[metric].values[0] if not high_row.empty else np.nan
+                
+                low_effort.append(low_val)
+                high_effort.append(high_val)
+                savings.append(low_val - high_val if pd.notna(low_val) and pd.notna(high_val) else np.nan)
+            
+            # Plot bars - calmer colors
+            bar_width = 0.35
+            bars_low = ax.bar(x_positions - bar_width/2, low_effort, bar_width, 
+                             label='Low Effort (Q1)', color='#d98880', alpha=0.85, edgecolor='white', linewidth=1.5)
+            bars_high = ax.bar(x_positions + bar_width/2, high_effort, bar_width, 
+                              label='High Effort (Q4)', color='#7dcea0', alpha=0.85, edgecolor='white', linewidth=1.5)
+            
+            # Add value labels on bars
+            for bar in bars_low:
+                height = bar.get_height()
+                if pd.notna(height):
+                    ax.annotate(f'{height:.2f}',
+                               xy=(bar.get_x() + bar.get_width()/2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9, fontweight='bold', color='#943126')
+            
+            for bar in bars_high:
+                height = bar.get_height()
+                if pd.notna(height):
+                    ax.annotate(f'{height:.2f}',
+                               xy=(bar.get_x() + bar.get_width()/2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9, fontweight='bold', color='#1e8449')
+            
+            # Add savings labels (no arrows, positioned at bottom of chart to avoid overlap)
+            max_height = max([v for v in low_effort + high_effort if pd.notna(v)]) if any(pd.notna(v) for v in low_effort + high_effort) else 2
+            
+            for i, saved in enumerate(savings):
+                if pd.notna(saved) and saved > 0:
+                    unit = 'EPA' if metric == 'avg_epa' else 'YAC'
+                    # Position label below x-axis to avoid overlap with title
+                    ax.text(x_positions[i], -0.15 if metric == 'avg_epa' else -0.4, 
+                           f'Saved: {saved:.2f} {unit}', 
+                           ha='center', va='top', fontsize=9, fontweight='bold',
+                           color='#1a5276', 
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='#d5f5e3', edgecolor='#1e8449', alpha=0.9))
+            
+            # Formatting
+            ax.set_xticks(x_positions)
+            ax.set_xticklabels(bands, fontsize=10)
+            ax.set_xlabel('Starting Distance Band', fontsize=12, fontweight='bold')
+            ax.set_ylabel(ylabel, fontsize=12, fontweight='bold')
+            ax.set_title(title, fontsize=14, fontweight='bold', pad=15)
+            ax.legend(loc='upper right', fontsize=9)
+            ax.axhline(0, color='black', linewidth=0.5)
+            ax.grid(axis='y', alpha=0.3)
+            
+            # Set y-limits with padding for labels
+            if metric == 'avg_epa':
+                ax.set_ylim(bottom=-0.6, top=max_height + 0.5)
+            else:
+                ax.set_ylim(bottom=-1.0, top=max_height + 0.8)
+        
+        # Overall title
+        fig.suptitle('The Payoff of Erasure: High-Effort Defenders Save Points & Yards', 
+                     fontsize=16, fontweight='bold', y=0.98)
+        
+        plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave room for labels and title
+        output_path = os.path.join(self.output_dir, 'V4_Effort_Impact_Chart.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"      -> Saved: {output_path}")
