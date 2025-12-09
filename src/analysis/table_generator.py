@@ -261,6 +261,64 @@ class TableGenerator:
         
         # Sort by avg_start_dist descending (deep players first = primary erasers)
         return position_stats[output_cols].sort_values('avg_start_dist', ascending=False)
+
+    def generate_void_effect_size(self):
+        """
+        TABLE: Void Effect Size Analysis
+        Shows completion %, EPA, and YAC by S_throw band with effect size 
+        (Δ from Tight baseline) to quantify the jump in difficulty.
+        """
+        df = self.df.copy()
+        
+        # Define S_throw bands based on dist_at_throw (original separation)
+        dist_col = 'p_dist_at_throw' if 'p_dist_at_throw' in df.columns else 'dist_at_throw'
+        
+        bins = [0, 2, 6, 10, float('inf')]
+        labels = ['Tight (0-2 yds)', 'Medium (3-6 yds)', 'High Void (6-10 yds)', 'Deep (10+ yds)']
+        df['start_band'] = pd.cut(df[dist_col], bins=bins, labels=labels, include_lowest=True)
+        
+        # Derive YAC for completions (yards_gained - pass_length)
+        df['yac'] = df['yards_gained'] - df['pass_length']
+        
+        # Calculate metrics by band
+        band_stats = df.groupby('start_band', observed=False).agg(
+            play_count=('play_id', 'count'),
+            completions=('pass_result', lambda x: (x == 'C').sum()),
+            avg_epa=('expected_points_added', 'mean')
+        ).reset_index()
+        
+        # Calculate YAC separately (only for completions)
+        completed = df[df['pass_result'] == 'C']
+        yac_by_band = completed.groupby('start_band', observed=False)['yac'].mean().reset_index()
+        yac_by_band.columns = ['start_band', 'avg_yac']
+        
+        # Merge YAC back
+        band_stats = band_stats.merge(yac_by_band, on='start_band', how='left')
+        
+        # Calculate completion percentage
+        band_stats['completion_pct'] = (band_stats['completions'] / band_stats['play_count'] * 100).round(1)
+        
+        # Calculate effect size (Δ from Tight baseline)
+        tight_completion = band_stats.loc[band_stats['start_band'] == 'Tight (0-2 yds)', 'completion_pct'].values
+        if len(tight_completion) > 0:
+            tight_baseline = tight_completion[0]
+            band_stats['delta_from_tight'] = band_stats['completion_pct'] - tight_baseline
+            band_stats['delta_from_tight'] = band_stats['delta_from_tight'].apply(
+                lambda x: f"+{x:.1f}pp" if x > 0 else ("—" if x == 0 else f"{x:.1f}pp")
+            )
+        else:
+            band_stats['delta_from_tight'] = "—"
+        
+        # Format other columns
+        band_stats['avg_epa'] = band_stats['avg_epa'].round(2)
+        band_stats['avg_yac'] = band_stats['avg_yac'].round(1)
+        band_stats['completion_pct'] = band_stats['completion_pct'].apply(lambda x: f"{x}%")
+        
+        # Select and rename columns for output
+        output = band_stats[['start_band', 'play_count', 'completion_pct', 'delta_from_tight', 'avg_epa', 'avg_yac']]
+        output.columns = ['S_throw Band', 'Play Count', 'Completion %', 'Δ from Tight', 'Avg EPA Allowed', 'Avg YAC']
+        
+        return output
     
 if __name__ == "__main__":
     SUMMARY_FILE = "data/processed/eraser_analysis_summary.csv"
@@ -281,3 +339,6 @@ if __name__ == "__main__":
     
     print("\n--- POSITION BREAKDOWN (Who Should Erase?) ---")
     print(gen.generate_position_breakdown().to_string(index=False))
+    
+    print("\n--- VOID EFFECT SIZE (Δ from Tight Baseline) ---")
+    print(gen.generate_void_effect_size().to_string(index=False))
