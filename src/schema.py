@@ -204,6 +204,7 @@ class BenchMarkingSchema(pa.DataFrameModel):
     
     # Metadata
     player_role: Series[str] = pa.Field()
+    player_name: Series[str] = pa.Field(nullable=True)
     player_position: Series[str] = pa.Field()
     week: Series[int] = pa.Field(coerce=True) 
     down: Series[int] = pa.Field(coerce=True)
@@ -229,6 +230,7 @@ class AnalysisReportSchema(pa.DataFrameModel):
     
     # Meta
     player_position: Series[str] = pa.Field(nullable=False) # Must exist for benchmarking
+    player_name: Series[str] = pa.Field(nullable=True)
     player_role: Series[str]
     team_coverage_type: Series[str]
     down: Series[int]
