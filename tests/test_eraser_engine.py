@@ -36,7 +36,7 @@ def test_eraser_engine_math_signs():
     
     engine = EraserEngine()
     # Context DF is unused in current script logic, passing empty
-    result = engine.calculate_erasure(df, pd.DataFrame())
+    result = engine.calculate_eraser(df, pd.DataFrame())
     
     # Check Eraser
     res_e = result[result['nfl_id'] == 100].iloc[0]
@@ -70,7 +70,7 @@ def test_eraser_engine_phase_filtering():
     df = pd.concat([target_pre, target_post, def_pre, def_post])
     
     engine = EraserEngine()
-    result = engine.calculate_erasure(df, pd.DataFrame())
+    result = engine.calculate_eraser(df, pd.DataFrame())
     
     row = result.iloc[0]
     
@@ -94,7 +94,7 @@ def test_eraser_engine_ghost_join():
     df = pd.concat([target, defender])
     
     engine = EraserEngine()
-    result = engine.calculate_erasure(df, pd.DataFrame())
+    result = engine.calculate_eraser(df, pd.DataFrame())
     
     row = result.iloc[0]
     

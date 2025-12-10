@@ -106,7 +106,7 @@ class TableGenerator:
         # Bin VIS Score (The Independent Variable)
         # Low Effort vs. High Effort closing
         vis_bins = [-np.inf, 0, 3, np.inf]
-        vis_labels = ['Negative (Lost Gap)', 'Moderate (0-3)', 'High Erasure (3+)']
+        vis_labels = ['Negative (Lost Gap)', 'Moderate (0-3)', 'High Eraser (3+)']
         completed['vis_bucket'] = pd.cut(completed['vis_score'], bins=vis_bins, labels=vis_labels)
 
         damage_control = completed.groupby(['start_band', 'vis_bucket'], observed=False).agg(
@@ -118,8 +118,8 @@ class TableGenerator:
         # Pivot for YAC (The Primary Proof)
         yac_pivot = damage_control.pivot(index='start_band', columns='vis_bucket', values='avg_yac')
         
-        # Calculate the "Savings" (Difference between Negative VIS and High Erasure)
-        yac_pivot['YAC_Savings'] = yac_pivot['Negative (Lost Gap)'] - yac_pivot['High Erasure (3+)']
+        # Calculate the "Savings" (Difference between Negative VIS and High Eraser)
+        yac_pivot['YAC_Savings'] = yac_pivot['Negative (Lost Gap)'] - yac_pivot['High Eraser (3+)']
         
         return yac_pivot.round(2)
 
@@ -207,7 +207,7 @@ class TableGenerator:
         # Filter for positions with meaningful sample size
         position_stats = position_stats[position_stats['play_count'] >= 50].copy()
         
-        # Derive Erasure Archetype based on behavior patterns
+        # Derive Eraser Archetype based on behavior patterns
         def assign_archetype(row):
             avg_start = row['avg_start_dist']
             avg_vis = row['avg_vis']

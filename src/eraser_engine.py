@@ -6,7 +6,7 @@ class EraserEngine:
     def __init__(self):
         self.output_schema = EraserMetricsSchema
 
-    def calculate_erasure(self, df: pd.DataFrame, context_df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_eraser(self, df: pd.DataFrame, context_df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculates how distinct defenders close space on the targeted receiver.
         """

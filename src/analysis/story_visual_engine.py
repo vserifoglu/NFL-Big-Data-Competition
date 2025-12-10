@@ -364,7 +364,7 @@ class StoryVisualEngine:
                 ax.set_ylim(bottom=-1.0, top=max_height + 0.8)
         
         # Overall title
-        fig.suptitle('The Payoff of Erasure: High-Effort Defenders Save Points & Yards', 
+        fig.suptitle('The Payoff of Eraser: High-Effort Defenders Save Points & Yards',
                      fontsize=16, fontweight='bold', y=0.98)
         
         plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave room for labels and title

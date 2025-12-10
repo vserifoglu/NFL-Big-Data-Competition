@@ -1233,7 +1233,7 @@ class EraserEngine:
     def __init__(self):
         self.output_schema = EraserMetricsSchema
 
-    def calculate_erasure(self, df: pd.DataFrame, context_df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_eraser(self, df: pd.DataFrame, context_df: pd.DataFrame) -> pd.DataFrame:
         """
         PHASE B: The Action.
         Calculates how distinct defenders close space on the targeted receiver.
@@ -2342,7 +2342,7 @@ class StoryVisualEngine:
                 ax.set_ylim(bottom=-1.0, top=max_height + 0.8)
         
         # Overall title
-        fig.suptitle('The Payoff of Erasure: High-Effort Defenders Save Points & Yards', 
+        fig.suptitle('The Payoff of Eraser: High-Effort Defenders Save Points & Yards', 
                      fontsize=16, fontweight='bold', y=0.98)
         
         plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave room for labels and title
@@ -2467,7 +2467,7 @@ class TableGenerator:
         # 4. Bin VIS Score (The Independent Variable)
         # Low Effort vs. High Effort closing
         vis_bins = [-np.inf, 0, 3, np.inf]
-        vis_labels = ['Negative (Lost Gap)', 'Moderate (0-3)', 'High Erasure (3+)']
+        vis_labels = ['Negative (Lost Gap)', 'Moderate (0-3)', 'High Eraser (3+)']
         completed['vis_bucket'] = pd.cut(completed['vis_score'], bins=vis_bins, labels=vis_labels)
 
         # 5. Aggregate
@@ -2480,8 +2480,8 @@ class TableGenerator:
         # 6. Pivot for YAC (The Primary Proof)
         yac_pivot = damage_control.pivot(index='start_band', columns='vis_bucket', values='avg_yac')
         
-        # Calculate the "Savings" (Difference between Negative VIS and High Erasure)
-        yac_pivot['YAC_Savings'] = yac_pivot['Negative (Lost Gap)'] - yac_pivot['High Erasure (3+)']
+        # Calculate the "Savings" (Difference between Negative VIS and High Eraser)
+        yac_pivot['YAC_Savings'] = yac_pivot['Negative (Lost Gap)'] - yac_pivot['High Eraser (3+)']
         
         return yac_pivot.round(2)
 
@@ -2577,7 +2577,7 @@ class TableGenerator:
         # 4. Filter for positions with meaningful sample size
         position_stats = position_stats[position_stats['play_count'] >= 50].copy()
         
-        # 5. Derive Erasure Archetype based on behavior patterns
+        # 5. Derive Eraser Archetype based on behavior patterns
         def assign_archetype(row):
             avg_start = row['avg_start_dist']
             avg_vis = row['avg_vis']

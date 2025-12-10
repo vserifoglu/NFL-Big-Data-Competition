@@ -50,7 +50,7 @@ def run_full_pipeline():
     # 5. ERASER
     print("[5/7] Phase B: Calculating Eraser Metrics (VIS)...")
     eraser_engine = EraserEngine()
-    df_metrics = eraser_engine.calculate_erasure(df_physics, df_context)
+    df_metrics = eraser_engine.calculate_eraser(df_physics, df_context)
 
     # 6. BENCHMARKING
     print("[6/7] Phase C: Benchmarking (CEOE)...")
