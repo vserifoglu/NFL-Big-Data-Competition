@@ -572,303 +572,6 @@ PHYSICS VARIABLES AVAILABILITY REPORT
              If these columns are missing, that code block will crash.
    IMPACT 3 (Physics): You must DERIVE speed/direction from x,y changes if needed.
 
-# Zone Coverage Auditing: The "Reaction Void Engine"
-
-## 1. Problem & Premise
-
-Traditional defensive metrics often evaluate "closing speed" in a vacuum. A defender running 20 mph is considered elite, but raw speed fails to capture the context of the movement relative to the defensive scheme.
-
-**The Problem:** Did the defender sprint because they were out of position (recovering from a mistake)? Or did they sprint to tighten an already perfect coverage window? Without context, "fast" looks the same as "panic."
-
-**The Premise:** A "Void" is not just generic empty space; it is an estimated offensive spatial advantage in the target zone (around the ball's landing point) established at the moment of release. The true measure of a defender's performance is evaluated relative to that void: do they measurably reduce the expected separation before the ball arrives?
-
-**The Goal:** To differentiate between defenders who merely run fast ("Athletes") and defenders who systematically close structural gaps ("Erasers").
-
-In this work, a **Void Score** quantifies how favorable the space is for the offense at the throw, and an **Eraser Score** measures how much an individual defender reduces that score while the ball is in the air. This framework directly targets the competition's focus on understanding defender movement while the ball is in the air, using pre-throw context only as conditioning.
-
-
-## 2. Methodology & Core Metrics
-
-This project utilizes the Big Data Bowl 2026 tracking data, specifically handling the separation between **Input (Pre-Throw, full physics)** and **Output (Post-Throw, ball-in-air)** files. We employ a **"Context vs. Action"** framework:
-
-### Phase A: The Context (The Void)
-
-Using the final frame of the Input file (The Throw), we calculate the **Void Context Score (S_throw)**.
-
-**Definition:** The Euclidean distance between the targeted receiver and the nearest defender at the exact moment of the quarterback's release.
-
-**Classification:**
-- **High Void (>5 yds):** Large pre-throw separation; indicates favorable offensive spacing or an early execution gap.
-- **Tight Window (<2 yds):** Minimal pre-throw separation; defense maintains strong leverage at the start of the throw.
-
-### Phase B: The Action (The Movement)
-
-Using the Output file (Ball-in-Air), we track the movement of the relevant defenders relative to the receiver and the landing spot.
-
-**Measurement:** We calculate **S_arrival**, the separation distance between the targeted receiver and the nearest defender at the moment of ball arrival (or the final frame of the play).
-
-## Core Metrics
-
-#### 1. Void Improvement Score (VIS)
-
-Measures the net reduction of the offensive spatial advantage during the ball's flight.
-VIS = S_throw − S_arrival
-
-
-- **Positive (+5.0):** The defender "healed" the coverage, closing a 5-yard gap to 0 yards.
-- **Negative (−2.0):** The defender lost ground, allowing the separation to grow.
-
-#### 2. Closing Efficiency Over Expectation (CEOE)
-
-A role-aware metric that evaluates the rate of closure relative to peer performance.
-
-**Definition:** The change in separation per second of flight time, compared to the league average for defenders with the same **Role** (e.g., Linebacker vs. Cornerback) and **Coverage Type** (Man vs. Zone) starting with a similar Void Context.
-
-**Why it matters:** It normalizes for hangtime. Closing 5 yards on a "rainbow" deep ball is easier than closing 5 yards on a quick slant; CEOE accounts for this by measuring efficiency against the clock.
-
-
-## 3. Expected Achievable Outcomes
-
-By the submission deadline, this project will deliver:
-
-### The "Base Subset" Dataset
-A rigorously filtered dataset isolating "Standard Football" situations:
-- **Down:** 1st or 2nd Down
-- **Game Context:** Win Probability between 20-80%
-- **Field Position:** Open Field (removing end-zone/sideline effects)
-
-This removes statistical noise like Hail Marys, desperation plays, or "Prevent" defense scenarios.
-
-### The Erasure Matrix
-A classification system grouping defensive plays into four quadrants based on pre-throw separation and closing performance:
-
-| Pre-Throw Context | Great Closing Performance | Poor Closing Performance |
-|-------------------|---------------------------|--------------------------|
-| **High Void** (>5 yds) | **The Erasers:** Fixing broken plays | **The Liabilities:** Compounding errors |
-| **Tight Window** (<2 yds) | **The Lockdown:** Maintaining dominance | **The Lost Step:** Squandering position |
-
-### Visualizations
-1. **Scatter Plot of Erasure:** Visualizing `S_throw` vs. `S_arrival` to identify elite performers and patterns in closing ability.
-2. **Closing Efficiency Race Charts:** Tracking distance-to-catch over time to visualize how defenders close (or fail to close) separation during the ball's flight.
-
-Most metrics punish defenders for being far away at the catch. The Void Engine rewards them for how much ground they closed to get there. It differentiates between 'Bad Coverage' and 'Elite Recovery,' while identifying the 'Erasers' who limit damage when the scheme breaks down.
-
-## The Void Engine: Quantifying Defensive Recovery and Damage Control After the Throw
-
-### 1. Abstract
-
-In modern football analysis, defensive backs are often unfairly penalized for the geometry of the play. A cornerback who allows a catch while playing tight press coverage is graded similarly to a safety who allows a catch after sprinting 20 yards to save a broken play. Current tracking metrics measure proximity at the moment of arrival, but they fail to account for the athleticism required to create that proximity.
-
-This project introduces The Void Engine, a physics-based analytics framework that isolates defensive performance during the "Ball-in-Air" phase. By separating the Context (the separation distance at the moment of the throw) from the Action (the distance erased during flight), we create a new metric: Void Improvement Score (VIS).
-
-Our analysis of the 2026 Big Data Bowl data reveals that VIS is a powerful proxy for "Damage Control." While high closing speed does not always guarantee an incompletion, it drastically reduces offensive efficiency. Specifically, defenders with elite VIS scores save an average of 3.34 yards of YAC (Yards After Catch) on completed passes in medium-void situations compared to low-effort counterparts. This framework allows coaches to identify "Erasers"—defenders with the elite recovery speed necessary to clean up schematic breakdowns.
-
-### 2. The Football Problem: "The Unfair Grade"
-
-Imagine two defensive plays that end with a receiver catching the ball with 1 yard of separation:
-
-- **Defender A (The Blanket):** Starts 1 yard away at the snap. Trails the receiver perfectly. Ends 1 yard away.
-- **Defender B (The Eraser):** Is schemed 15 yards deep (Cover 3 Safety). Reads the throw late. Sprints 14 yards while the ball is in the air. Ends 1 yard away, making a contested tackle.
-
-**The Data Failure**
-
-Standard metrics view these two plays as identical: Distance at Catch = 1.0 yards.
-
-- Defender A is correctly credited for good coverage.
-- Defender B receives no credit for the extraordinary athletic effort required to close a 14-yard gap. In fact, traditional stats might penalize him for allowing the catch, ignoring that he turned a potential touchdown into a 15-yard gain.
-
-**The Solution: Separating Scheme from Execution**
-
-To evaluate defenders fairly, we must decouple the situation they inherited from what they did with it.
-
-- **The Context (Sthrow​):** How big was the "Void" (separation) at the precise moment the Quarterback released the ball? This is often dictated by the defensive call (Scheme) or a pre-snap mistake.
-- **The Recovery (VIS):** How many yards of that Void did the defender "erase" before the ball arrived? This is dictated by reaction time, acceleration, and effort (Player Skill).
-
-By focusing on the change in separation rather than the absolute distance, The Void Engine identifies a specific, undervalued archetype of player: the Eraser, who specializes in mitigating disaster when the primary coverage breaks down.
-
-
-### 3. Methodology: Building The Void Engine
-
-To quantify recovery speed, we constructed a three-phase pipeline that isolates the "Ball-in-Air" window—starting strictly at the `pass_forward` event and ending at `pass_arrived` (catch, incompletion, or interception).
-
-#### Phase A: Context (Sthrow)
-
-Before evaluating a defender’s movement, we must understand the difficulty of their assignment. We define the "Context" based on the geometry of the field at the precise moment the ball is thrown.
-
-*   **Metric:** Sthrow (Separation at Throw).
-*   **Logic:** We calculate the Euclidean distance between the targeted receiver and the single nearest defender.
-*   **Design Decision:** We utilize a **Primary Matchup Reduction** strategy. While zone defenses involve multiple players, the responsibility to "squeeze" the catch point falls primarily on the nearest defender. By isolating this specific relationship, we avoid crediting a deep safety for a tight window created by a cornerback, ensuring we grade individual responsibility rather than schematic positioning.
-
-#### Phase B: Action (VIS)
-
-Once the ball is in the air, the "Action" phase begins. We measure how the defender changes their leverage relative to the receiver over the duration of the flight.
-
-*   **Metric:** Void Improvement Score (VIS).
-*   **Formula:** `VIS = Sthrow - Sarrival`
-*   **Interpretation:**
-    *   **Positive VIS (+):** The defender closed space (Erasure).
-    *   **Negative VIS (-):** The defender lost leverage (Liability).
-    *   **Zero VIS:** The defender maintained their position (Lockdown/Trail).
-
-Unlike max speed, which can be misleading (a defender sprinting because they are beaten), VIS measures *productive velocity*—speed that actually reduces the void.
-
-![Race Charts](https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Compeition/refs/heads/main/static/visuals_final/V2_Race_Charts.png)
-
-*   **Figure 2:** The Physics of Erasure. This chart illustrates the difference between an Eraser (Green) who closes a 15-yard gap, and a Liability (Red) who allows a neutral start to become a wide-open throw.
-
-#### Phase C: Benchmarking (CEOE)
-
-Raw VIS favors positions that play deep (Safeties) because they have more "room" to erase. To create a fair comparison, we normalize performance against positional expectations.
-
-*   **Metric:** Closing Efficiency Over Expectation (CEOE).
-*   **Normalization:** We compare each player’s average VIS strictly against their positional peers (Cornerbacks vs. Cornerbacks, Linebackers vs. Linebackers).
-*   **Bayesian Shrinkage:** To solve the "Small Sample Size" problem, we apply Bayesian Shrinkage to the leaderboard. A player’s raw score is pulled toward the positional mean based on their snap count (n) and a prior weight (m=20).
-
-    `CEOE = (n * RawScore + m * PositionalAvg) / (n + m)`
-
-This ensures our "Top Erasers" are proven performers with consistent impact, rather than backups with a single lucky play.
-
-
-### 4. Validation: From "Ball Hawk" to "Damage Control"
-
-A common pitfall in tracking metrics is assuming that closing speed always leads to positive outcomes. Our validation process revealed a crucial nuance in how recovery speed interacts with play results.
-
-#### The "Tackle Bias" Discovery
-
-When we aligned our VIS metric against binary pass outcomes (Complete vs. Incomplete), we observed a counter-intuitive trend in high-void situations:
-
-*   **Completed Passes:** Higher average VIS.
-*   **Incomplete Passes:** Lower average VIS.
-
-This phenomenon, which we term **"Tackle Bias,"** occurs because defenders often generate their maximum closing speed specifically when a catch is made, converging rapidly to secure the tackle. Conversely, on uncatchable overthrows, a defender might slow down, registering a lower VIS despite the positive defensive outcome.
-
-#### The Pivot: VIS as a Damage Control Metric
-
-This finding clarified that VIS is not necessarily a predictor of prevention, but of mitigation. To test this, we analyzed the relationship between VIS and Yards After Catch (YAC) on completed passes.
-
-We segmented plays by their initial difficulty (Start Distance) and compared the outcomes of defenders with **High VIS** vs. **Negative VIS**.
-
-**Table 1: YAC Savings by Eraser Tier**
-
-| Context (Start Distance) | Low Effort (Negative VIS) | High Effort (VIS > 3) | YAC Saved |
-| :--- | :--- | :--- | :--- |
-| Medium Void (3-6 yds) | 4.77 yds allowed | 1.43 yds allowed | **+3.34 yds** |
-| High Void (6-10 yds) | 4.65 yds allowed | 2.50 yds allowed | **+2.15 yds** |
-
-#### The Verdict
-
-The results confirm that while high recovery speed does not guarantee an incompletion, it drastically reduces the damage of a completion. In the critical "Medium Void" window—where many first downs are decided—defenders with elite recovery speed hold receivers to **3.34 fewer yards after the catch** than their slower-reacting peers.
-
-This validates The Void Engine as a measure of defensive insurance: identifying the players who turn potential touchdowns into manageable gains.
-
-### 5. Results: The Eraser Landscape
-
-To map defensive performance, we plotted every valid play from the 2026 dataset based on the context (Sthrow) and the result (Sarrival). This reveals four distinct archetypes of defensive coverage.
-
-#### The Four Archetypes
-
-As visualized in **Figure 1**, defensive performance falls into four quadrants:
-
-*   **🟩 The Eraser (High Start → Tight Finish):**
-    *   **Definition:** Defenders who inherit a "High Void" (>3 yards) but use elite closing speed to force a tight window (<1.5 yards) at arrival.
-    *   **Role:** These are the "Fixers." They are predominantly Safeties and Zone Corners who mitigate schematic risks.
-
-*   **🟦 The Lockdown (Tight Start → Tight Finish):**
-    *   **Definition:** Defenders who maintain leverage throughout the route. They generate low VIS scores because they never allow a void to form.
-    *   **Role:** Press-Man Corners. Their value is prevention, not recovery.
-
-*   **🟥 The Liability (Neutral/High Start → Open Finish):**
-    *   **Definition:** Defenders who fail to close the gap or actively lose leverage.
-    *   **Role:** The primary target for offensive coordinators.
-
-*   **🟨 The Lost Step (Tight Start → Open Finish):**
-    *   **Definition:** A tragedy of mechanics. These defenders win the route early but lose the rep late (e.g., biting on a double move or falling down), resulting in a massive negative VIS.
-
-![Eraser Landscape](https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Compeition/refs/heads/main/static/visuals_final/V1_Eraser_Landscape.png)
-
-
-| Quadrant | Play Count | Avg VIS | Avg CEOE |
-|----------|:----------:|:-------:|:--------:|
-| 🟩 **Eraser (The Cleanup)** | 173 | **3.39** | **2.385** |
-| 🟦 **Lockdown (The Blanket)** | 366 | 1.32 | 0.857 |
-| 🟥 **Liability (The Void)** | 2,889 | 0.80 | -0.066 |
-| 🟨 **Lost Step (The Beat)** | 1,763 | 0.15 | -0.303 |
-
-#### The Leaderboard: Identifying the Elite
-
-Applying Bayesian Shrinkage to normalize for sample size, we ranked the top "Erasers" in the league. The results validate the metric's ability to identify deep-coverage specialists.
-
-**Table 2: Top Defensive Erasers (Ranked by CEOE)**
-
-| Position | Role | Snaps | Avg Start | Avg VIS | Shrunk CEOE |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| FS | Deep Zone | 21 | 11.5 yds | +4.95 yds | **1.41** |
-| CB | Cornerback | 35 | 12.1 yds | +2.45 yds | **1.26** |
-| FS | Deep Zone | 31 | 11.9 yds | +4.80 yds | **1.05** |
-
-**Insight:** The leaderboard is topped by a Free Safety (#53494) who consistently closes gaps of 11+ yards. This confirms that CEOE correctly rewards the unique geometry of the safety position, where "distance" is not a sign of failure, but a runway for acceleration.
-
-#### Strategic Geography
-
-By mapping VIS against coverage types (Figure 3), we find that "Erasure" is most critical in **Cover 3** and **Cover 1** schemes. In these single-high safety looks, the "Void" in the seams is structurally inherent; the defense relies entirely on the post-throw recovery speed of the deep safety to erase it.
-
-![Coverage Heatmap](https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Compeition/refs/heads/main/static/visuals_final/V3_Coverage_Heatmap.png)
-
-### 6. Case Study: Anatomy of an Eraser
-
-Statistics tell us that a player is elite; film tells us how. To validate the metric, we isolate the highest-VIS play from our dataset: a recovery by Safety #53494 against a deep vertical route.
-
-![Eraser Highlight](https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Compeition/refs/heads/main/static/visuals_final/Figure_4_Eraser_Highlight.gif)
-
-#### The Breakdown
-
-*   **Context (T = 0.0s):** At the moment of the throw, the Safety is 15.3 yards away from the target. In most defensive grading systems, this is considered "Out of Phase" or "Beaten." The probability of a completion is high.
-*   **The Reaction (T = 1.5s):** As the ball travels, the Safety reads the trajectory. While the receiver maintains speed, the Safety plants and accelerates. The gap momentarily widens to 17 yards before the pursuit angle is established.
-*   **The Erasure (T = 2.5s - Arrival):** The Safety achieves a closing velocity significantly higher than the receiver. In the final 2 seconds of flight, he erases 12.5 yards of separation.
-*   **The Result:** The ball arrives with the defender just 2.8 yards away—close enough to contest the catch or deliver an immediate tackle.
-
-This play generated a VIS of **+12.5**. It illustrates that "separation" is not a static state, but a dynamic variable that elite athletes can manipulate while the ball is in the air.
-
-### 7. Strategic Applications
-
-The Void Engine provides actionable intelligence for three key pillars of an NFL organization:
-
-#### For Coaches: Trusting the "Island"
-
-Defensive Coordinators often face a dilemma: Can I trust this DB in single-high coverage? CEOE provides the answer.
-
-*   A player with **high Lockdown scores (Low Start, Low End)** can be trusted in Press-Man.
-*   A player with **high Eraser scores (High Start, Tight Finish)** is the ideal candidate for Single-High Safety, where covering ground is the primary job description.
-
-#### For Scouting: Finding the Hidden Gem
-
-Draft prospects often fall due to "bad technique" or "poor positioning." However, positioning is coachable; elite recovery speed is not.
-
-*   **The Opportunity:** A prospect with a low PFF grade (due to allowing separation early) but a high CEOE represents a high-value asset. They possess the raw "Eraser" trait that can save a broken play, making them a "High Ceiling" draft pick.
-
-#### For Scheme Design: Heatmap Vulnerabilities
-
-By mapping Average VIS across field zones (Figure 3), coordinators can identify structural weaknesses.
-
-*   **Example:** If the defense has a negative Average VIS on deep outs in Cover 3, it indicates that the outside corners are not recovering fast enough to the sideline. The coordinator can adjust by playing softer (increasing cushion) or rolling coverage.
-
-### 8. Conclusion & Future Work
-
-#### The Verdict
-
-The Void Engine challenges the binary view of defensive coverage. It moves beyond "Open vs. Covered" to quantify the work done to change that status. By isolating the "Ball-in-Air" phase, we successfully turned recovery speed—previously an intangible "eye test" trait—into a rigorous, quantifiable asset. We proved that while high recovery speed does not guarantee interceptions, it is a premier tool for **Damage Control**, saving valuable yardage (YAC) when the scheme breaks down.
-
-#### Limitations
-
-Honest data science requires acknowledging constraints:
-
-*   **Blocker Blindness:** Our geometric distance calculation (Sarrival) does not currently account for blockers who might be obstructing the defender’s path.
-*   **Sideline Constraints:** A defender might slow down not because of a lack of effort, but because the receiver is running out of bounds. The current model interprets this deceleration as a loss of leverage.
-*   **Quarterback Intent:** We assume the QB aims for the receiver. On back-shoulder throws, "separation" is actually desirable for the offense, which creates noise in the "Tight Window" metric.
-
-#### Future Work
-
-The next iteration of The Void Engine would integrate **Orientation (o)** and **Direction (dir)** tracking data to create a "**Look-Off Penalty**." By measuring if a defender’s hips were turned the wrong way at the throw, we could further isolate the difficulty of the recovery, rewarding players who erase gaps even after biting on a play-action fake.
 
 import pandera.pandas as pa
 from pandera.typing import Series
@@ -1076,6 +779,7 @@ class BenchMarkingSchema(pa.DataFrameModel):
     
     # Metadata
     player_role: Series[str] = pa.Field()
+    player_name: Series[str] = pa.Field(nullable=True)
     player_position: Series[str] = pa.Field()
     week: Series[int] = pa.Field(coerce=True) 
     down: Series[int] = pa.Field(coerce=True)
@@ -1101,6 +805,7 @@ class AnalysisReportSchema(pa.DataFrameModel):
     
     # Meta
     player_position: Series[str] = pa.Field(nullable=False) # Must exist for benchmarking
+    player_name: Series[str] = pa.Field(nullable=True)
     player_role: Series[str]
     team_coverage_type: Series[str]
     down: Series[int]
@@ -1672,6 +1377,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.animation as animation
 from matplotlib.offsetbox import AnchoredText
+from matplotlib.patches import FancyBboxPatch, Circle, Ellipse
 import os
 
 class AnimationEngine:
@@ -1682,33 +1388,62 @@ class AnimationEngine:
         print(f"   [Animator] Loading Data...")
         self.summary_df = pd.read_csv(summary_path)
         
-        # ADDED: 'defensive_team', 'yardline_number', 'yardline_side', 'team_coverage_type'
+        # ADDED: 'defensive_team', 'yardline_number', 'yardline_side', 'team_coverage_type', 'phase'
         cols = [
-            'game_id', 'play_id', 'nfl_id', 'frame_id', 'x', 'y', 
+            'game_id', 'play_id', 'nfl_id', 'frame_id', 'x', 'y', 'phase',
             'player_role', 'player_name', 'ball_land_x', 'ball_land_y',
             'down', 'yards_to_go', 'pass_result', 'possession_team', 'defensive_team',
-            'yardline_number', 'yardline_side', 'team_coverage_type'
+            'yardline_number', 'yardline_side', 'team_coverage_type', 'yards_gained',
+            's_derived'  # Speed for display
         ]
         
         self.frames_df = pd.read_csv(frames_path, usecols=cols)
 
     def _draw_field(self, ax):
-        """Sets up the static field background."""
+        """Sets up the static NFL-style field background."""
         ax.set_xlim(0, 120)
         ax.set_ylim(0, 53.3)
-        ax.set_facecolor('#f0f0f0')
+        ax.set_facecolor('#2e7d32')  # NFL Green
+        ax.set_aspect('equal')
+        ax.axis('off')
         
-        # Endzones
-        ax.add_patch(patches.Rectangle((0, 0), 10, 53.3, color='#a5c9a5', alpha=0.3, zorder=0))
-        ax.add_patch(patches.Rectangle((110, 0), 10, 53.3, color='#a5c9a5', alpha=0.3, zorder=0))
+        # Field outline
+        field_rect = patches.Rectangle((10, 0), 100, 53.3, linewidth=2, 
+                                         edgecolor='white', facecolor='#3d8b40', zorder=0)
+        ax.add_patch(field_rect)
         
-        # Yard lines
-        for x in range(10, 110, 10):
-            alpha = 0.8 if x % 10 == 0 else 0.3
-            ax.axvline(x, color='white', linestyle='-', linewidth=2, alpha=alpha, zorder=1)
-            if x % 10 == 0 and 10 < x < 110:
-                num = x if x <= 50 else 100 - x
-                ax.text(x, 5, str(num), color='grey', ha='center', fontsize=10, alpha=0.5)
+        # End Zones
+        ez_left = patches.Rectangle((0, 0), 10, 53.3, facecolor='#1b5e20', edgecolor='white', linewidth=2, zorder=0)
+        ez_right = patches.Rectangle((110, 0), 10, 53.3, facecolor='#1b5e20', edgecolor='white', linewidth=2, zorder=0)
+        ax.add_patch(ez_left)
+        ax.add_patch(ez_right)
+        ax.text(5, 26.65, 'END\nZONE', ha='center', va='center', fontsize=8, 
+                fontweight='bold', color='white', alpha=0.6, rotation=90)
+        ax.text(115, 26.65, 'END\nZONE', ha='center', va='center', fontsize=8, 
+                fontweight='bold', color='white', alpha=0.6, rotation=270)
+        
+        # Yard lines (every 5 yards, bold every 10)
+        for x in range(10, 111, 5):
+            lw = 2 if x % 10 == 0 else 0.5
+            alpha = 1.0 if x % 10 == 0 else 0.5
+            ax.axvline(x, color='white', linestyle='-', linewidth=lw, alpha=alpha, zorder=1)
+        
+        # Yard numbers
+        for x in range(20, 110, 10):
+            num = (x - 10) if x <= 60 else (110 - x)
+            # Top numbers
+            ax.text(x, 48, str(num), color='white', ha='center', va='center', 
+                    fontsize=12, fontweight='bold', alpha=0.8)
+            # Bottom numbers
+            ax.text(x, 5, str(num), color='white', ha='center', va='center', 
+                    fontsize=12, fontweight='bold', alpha=0.8)
+        
+        # Hash marks (NFL style)
+        hash_y_top = 39.3  # 70 feet 9 inches from sideline
+        hash_y_bot = 14.0
+        for x in range(10, 111, 1):
+            ax.plot([x, x], [hash_y_top, hash_y_top + 0.5], color='white', linewidth=0.5, alpha=0.6, zorder=1)
+            ax.plot([x, x], [hash_y_bot - 0.5, hash_y_bot], color='white', linewidth=0.5, alpha=0.6, zorder=1)
 
     def generate_video(self, game_id, play_id, eraser_id, filename="play_animation.mp4"):
         print(f"   [Animator] Rendering video for {game_id}-{play_id}...")
@@ -1722,128 +1457,355 @@ class AnimationEngine:
         if play_frames.empty: return
 
         # 2. Actors & Context
-        target_id = play_frames[play_frames['player_role'] == 'Targeted Receiver']['nfl_id'].iloc[0]
+        target_row = play_frames[play_frames['player_role'] == 'Targeted Receiver']
+        target_id = target_row['nfl_id'].iloc[0]
+        target_name = target_row['player_name'].iloc[0] if 'player_name' in target_row.columns else "WR"
+        
+        # Get QB info
+        qb_row = play_frames[play_frames['player_role'] == 'Passer']
+        qb_id = qb_row['nfl_id'].iloc[0] if not qb_row.empty else None
+        qb_name = qb_row['player_name'].iloc[0] if not qb_row.empty and 'player_name' in qb_row.columns else "QB"
         
         summary_row = self.summary_df[
             (self.summary_df['game_id'] == game_id) & 
             (self.summary_df['play_id'] == play_id)
         ]
         
-        # Get Scores
+        # Get Scores & Names
         vis_score = 0.0
         start_dist = 0.0
+        end_dist = 0.0
         context_id = None
+        eraser_name = "DEF"
+        context_name = "DEF"
         
         if not summary_row.empty:
             eraser_row = summary_row[summary_row['nfl_id'] == eraser_id]
             if not eraser_row.empty:
                 vis_score = eraser_row.iloc[0]['vis_score']
                 start_dist = eraser_row.iloc[0]['p_dist_at_throw']
-            context_id = summary_row.loc[summary_row['p_dist_at_throw'].idxmin()]['nfl_id']
+                end_dist = eraser_row.iloc[0].get('p_dist_at_arrival', start_dist - vis_score)
+                if 'player_name' in eraser_row.columns:
+                    eraser_name = eraser_row.iloc[0]['player_name']
+            # Get context defender (closest at throw)
+            context_idx = summary_row['p_dist_at_throw'].idxmin()
+            context_id = summary_row.loc[context_idx]['nfl_id']
+            if 'player_name' in summary_row.columns:
+                context_name = summary_row.loc[context_idx]['player_name']
 
-        # 3. BALL TRAJECTORY LOGIC
-        # --- FIX: DEFINE unique_frames HERE ---
-        unique_frames = play_frames['frame_id'].unique()
-        # --------------------------------------
+        # Get play metadata
+        meta = play_frames.iloc[0]
+        pass_result = meta.get('pass_result', 'Unknown')
+        yards_gained = meta.get('yards_gained', 0)
         
+        # 3. BALL TRAJECTORY LOGIC
+        unique_frames = sorted(play_frames['frame_id'].unique())
         start_frame = play_frames['frame_id'].min()
         end_frame = play_frames['frame_id'].max()
-        total_steps = len(unique_frames)
         
-        # Passer Logic
-        passer = play_frames[(play_frames['frame_id'] == start_frame) & (play_frames['player_role'] == 'Passer')]
-        if not passer.empty:
-            bx_start, by_start = passer.iloc[0]['x'], passer.iloc[0]['y']
+        # Identify the throw frame (first frame of post_throw phase)
+        if 'phase' in play_frames.columns:
+            post_throw_data = play_frames[play_frames['phase'] == 'post_throw']
+            if not post_throw_data.empty:
+                throw_frame = post_throw_data['frame_id'].min()
+            else:
+                throw_frame = start_frame
         else:
-            bx_start = play_frames.iloc[0]['ball_land_x'] - 15 
-            by_start = 26.65
-
+            throw_frame = start_frame
+        
+        # Get post-throw frames for ball interpolation
+        post_throw_frames = sorted([f for f in unique_frames if f >= throw_frame])
+        post_throw_steps = len(post_throw_frames)
+        
+        # Ball landing position
         bx_end, by_end = play_frames.iloc[0]['ball_land_x'], play_frames.iloc[0]['ball_land_y']
         
-        ball_x = np.linspace(bx_start, bx_end, total_steps)
-        ball_y = np.linspace(by_start, by_end, total_steps)
+        # Get QB position at throw frame
+        passer_at_throw = play_frames[
+            (play_frames['frame_id'] == throw_frame) & 
+            (play_frames['player_role'] == 'Passer')
+        ]
+        if not passer_at_throw.empty:
+            bx_throw, by_throw = passer_at_throw.iloc[0]['x'], passer_at_throw.iloc[0]['y']
+        else:
+            passer_early = play_frames[play_frames['player_role'] == 'Passer'].sort_values('frame_id')
+            if not passer_early.empty:
+                bx_throw, by_throw = passer_early.iloc[0]['x'], passer_early.iloc[0]['y']
+            else:
+                bx_throw, by_throw = bx_end - 15, 26.65
         
-        # Use the defined unique_frames for the zip
-        ball_pos_dict = {f: (x, y) for f, x, y in zip(unique_frames, ball_x, ball_y)}
+        # Interpolate ball trajectory ONLY for post-throw frames
+        if post_throw_steps > 1:
+            ball_x_flight = np.linspace(bx_throw, bx_end, post_throw_steps)
+            ball_y_flight = np.linspace(by_throw, by_end, post_throw_steps)
+        else:
+            ball_x_flight = [bx_end]
+            ball_y_flight = [by_end]
+        
+        # Build ball position dictionary
+        ball_pos_dict = {}
+        for f in unique_frames:
+            if f < throw_frame:
+                passer_at_f = play_frames[
+                    (play_frames['frame_id'] == f) & 
+                    (play_frames['player_role'] == 'Passer')
+                ]
+                if not passer_at_f.empty:
+                    ball_pos_dict[f] = (passer_at_f.iloc[0]['x'], passer_at_f.iloc[0]['y'])
+                else:
+                    ball_pos_dict[f] = (bx_throw, by_throw)
+            else:
+                idx = post_throw_frames.index(f)
+                ball_pos_dict[f] = (ball_x_flight[idx], ball_y_flight[idx])
+
+        # ===== BUILD PLAYER POSITION CACHE =====
+        # Cache last known position for each player to handle "ghost" players
+        # who disappear in post_throw frames (>8yds from catch point in output data)
+        all_player_ids = play_frames['nfl_id'].unique()
+        player_cache = {}  # {nfl_id: {'x': x, 'y': y, 'role': role, 's_derived': speed}}
+        
+        # Pre-build cache by iterating through frames in order
+        player_positions_by_frame = {}
+        for f in unique_frames:
+            snap = play_frames[play_frames['frame_id'] == f]
+            frame_positions = {}
+            
+            for pid in all_player_ids:
+                player_row = snap[snap['nfl_id'] == pid]
+                if not player_row.empty:
+                    # Update cache with current position
+                    player_cache[pid] = {
+                        'x': player_row.iloc[0]['x'],
+                        'y': player_row.iloc[0]['y'],
+                        'role': player_row.iloc[0]['player_role'],
+                        's_derived': player_row.iloc[0].get('s_derived', 0)
+                    }
+                # Use cached position (current or last known)
+                if pid in player_cache:
+                    frame_positions[pid] = player_cache[pid].copy()
+            
+            player_positions_by_frame[f] = frame_positions
 
         # 4. Setup Figure
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(14, 7))
         self._draw_field(ax)
         
-        # Context Box
-        meta = play_frames.iloc[0]
+        # ===== INFO PANELS =====
+        
+        # Context Box (Top Left) - Down & Distance, Coverage
         yd_str = f"{meta['yardline_side']} {int(meta['yardline_number'])}"
         cov_str = str(meta['team_coverage_type']).replace('_', ' ').title()
-        
-        context_text = f"{meta['down']} & {meta['yards_to_go']} | {yd_str}\n{cov_str}"
-        at_context = AnchoredText(context_text, loc='upper left', prop=dict(size=10, fontweight='bold'), frameon=True)
-        at_context.patch.set_boxstyle("round,pad=0.3")
-        at_context.patch.set_alpha(0.8)
+        context_text = f"{int(meta['down'])} & {int(meta['yards_to_go'])} | {yd_str}\n{cov_str}"
+        at_context = AnchoredText(context_text, loc='upper left', 
+                                   prop=dict(size=11, fontweight='bold', family='monospace'), frameon=True)
+        at_context.patch.set_boxstyle("round,pad=0.4")
+        at_context.patch.set_facecolor('#1a1a2e')
+        at_context.patch.set_edgecolor('white')
+        at_context.patch.set_alpha(0.95)
+        for txt in at_context.txt.get_children():
+            txt.set_color('white')
         ax.add_artist(at_context)
 
-        # Metric Box
+        # Metric Box (Top Center) - VIS Score
         sign = "+" if vis_score > 0 else ""
-        metric_text = f"Start: {start_dist:.1f} yds\nVIS: {sign}{vis_score:.1f} yds"
-        at_metric = AnchoredText(metric_text, loc='upper center', prop=dict(size=12, fontweight='bold', color='#2c3e50'), frameon=True)
-        at_metric.patch.set_boxstyle("round,pad=0.3")
-        at_metric.patch.set_edgecolor('#2ecc71')
-        at_metric.patch.set_linewidth(2)
+        metric_text = f"START: {start_dist:.1f} yds\nVIS: {sign}{vis_score:.1f} yds"
+        at_metric = AnchoredText(metric_text, loc='upper center', 
+                                  prop=dict(size=12, fontweight='bold', family='monospace'), frameon=True)
+        at_metric.patch.set_boxstyle("round,pad=0.4")
+        at_metric.patch.set_facecolor('#16213e')
+        at_metric.patch.set_edgecolor('#00ff88' if vis_score > 0 else '#ff4444')
+        at_metric.patch.set_linewidth(3)
+        for txt in at_metric.txt.get_children():
+            txt.set_color('#00ff88' if vis_score > 0 else '#ff4444')
         ax.add_artist(at_metric)
 
-        # Timer
-        timer_text = ax.text(118, 50, '', ha='right', fontsize=14, fontweight='bold', color='black',
-                             bbox=dict(facecolor='white', edgecolor='black', pad=3))
+        # Outcome Badge (Top Right area) - shows COMPLETE/INCOMPLETE
+        outcome_color = '#27ae60' if pass_result == 'C' else '#c0392b'
+        outcome_text = 'COMPLETE ✓' if pass_result == 'C' else 'INCOMPLETE ✗'
+        outcome_label = ax.text(118, 50, outcome_text, ha='right', va='top', fontsize=11, 
+                                 fontweight='bold', color='white',
+                                 bbox=dict(facecolor=outcome_color, edgecolor='white', 
+                                          pad=6, boxstyle='round,pad=0.4'))
 
-        # 5. Plot Objects
-        scat_others = ax.scatter([], [], c='grey', alpha=0.3, s=40, zorder=2)
-        scat_target = ax.scatter([], [], c='#e74c3c', s=150, marker='s', edgecolors='white', zorder=5, label='Target')
-        scat_eraser = ax.scatter([], [], c='#2ecc71', s=250, marker='*', edgecolors='white', zorder=6, label='Eraser')
-        scat_context = ax.scatter([], [], c='#3498db', s=150, marker='^', edgecolors='white', zorder=5, label='Context Def')
-        scat_ball = ax.scatter([], [], c='#d35400', s=180, marker='o', edgecolors='white', linewidth=1.5, zorder=10, label='Ball')
+        # Timer (Right side)
+        timer_text = ax.text(118, 42, '', ha='right', fontsize=13, fontweight='bold', color='white',
+                             bbox=dict(facecolor='#2c3e50', edgecolor='white', pad=4, boxstyle='round,pad=0.3'))
         
-        line_void, = ax.plot([], [], color='black', linestyle='--', alpha=0.7, zorder=4)
-        text_void = ax.text(0, 0, '', ha='center', fontweight='bold', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+        # Phase Label
+        phase_label = ax.text(118, 35, '', ha='right', fontsize=11, fontweight='bold', color='white',
+                              bbox=dict(facecolor='#3498db', edgecolor='white', pad=5, boxstyle='round,pad=0.3'))
         
-        ax.legend(loc='lower right', fontsize=9, framealpha=0.9)
+        # Speed indicator for eraser
+        speed_label = ax.text(118, 28, '', ha='right', fontsize=10, fontweight='bold', color='white',
+                              bbox=dict(facecolor='#8e44ad', edgecolor='white', pad=4, boxstyle='round,pad=0.3'))
+
+        # ===== STATIC MARKERS =====
+        
+        # Ball Landing Spot (X marker - visible entire animation)
+        ax.scatter([bx_end], [by_end], c='#ffff00', s=400, marker='X', 
+                   edgecolors='#ff6600', linewidths=3, zorder=2, alpha=0.9)
+        ax.text(bx_end, by_end - 2.5, 'TARGET', ha='center', va='top', fontsize=7,
+                fontweight='bold', color='#ffff00', alpha=0.9)
+        
+        # ===== PLAYER MARKERS =====
+        
+        # Other defenders (blue circles)
+        scat_def_others = ax.scatter([], [], c='#2980b9', s=200, marker='o', 
+                                      edgecolors='white', linewidths=2, zorder=3, alpha=0.7)
+        
+        # Other offense (red circles)  
+        scat_off_others = ax.scatter([], [], c='#c0392b', s=200, marker='o',
+                                      edgecolors='white', linewidths=2, zorder=3, alpha=0.7)
+        
+        # QB (purple diamond - distinctive)
+        scat_qb = ax.scatter([], [], c='#9b59b6', s=350, marker='D', 
+                              edgecolors='white', linewidths=3, zorder=5)
+        qb_label = ax.text(0, 0, '', ha='center', va='bottom', fontsize=8,
+                           fontweight='bold', color='white',
+                           bbox=dict(facecolor='#9b59b6', edgecolor='none', pad=2, alpha=0.9))
+        
+        # Target Receiver (orange star - stands out)
+        scat_target = ax.scatter([], [], c='#ff6b35', s=450, marker='*', 
+                                  edgecolors='white', linewidths=2, zorder=6)
+        target_label = ax.text(0, 0, '', ha='center', va='bottom', fontsize=8, 
+                               fontweight='bold', color='white',
+                               bbox=dict(facecolor='#ff6b35', edgecolor='none', pad=2, alpha=0.9))
+        
+        # Eraser (bright green, largest circle)
+        scat_eraser = ax.scatter([], [], c='#00ff88', s=400, marker='o',
+                                  edgecolors='#004d40', linewidths=3, zorder=7)
+        eraser_label = ax.text(0, 0, '', ha='center', va='bottom', fontsize=8,
+                               fontweight='bold', color='black',
+                               bbox=dict(facecolor='#00ff88', edgecolor='none', pad=2, alpha=0.9))
+        
+        # Context Defender (cyan triangle - closest at throw)
+        scat_context = ax.scatter([], [], c='#00bcd4', s=300, marker='^',
+                                   edgecolors='white', linewidths=2, zorder=5)
+        context_label = ax.text(0, 0, '', ha='center', va='bottom', fontsize=8,
+                                fontweight='bold', color='white',
+                                bbox=dict(facecolor='#00bcd4', edgecolor='none', pad=2, alpha=0.9))
+        
+        # Ball (brown pentagon - football shape)
+        scat_ball = ax.scatter([], [], c='#8B4513', s=200, marker='p',
+                                edgecolors='white', linewidths=2, zorder=10)
+        
+        # Void line (dashed line between eraser and target)
+        line_void, = ax.plot([], [], color='#ffff00', linestyle='--', linewidth=2, alpha=0.8, zorder=4)
+        text_void = ax.text(0, 0, '', ha='center', va='center', fontsize=10, fontweight='bold', 
+                            color='black', bbox=dict(facecolor='#ffff00', alpha=0.9, edgecolor='none', pad=3))
+
+        # ===== LEGEND =====
+        legend_elements = [
+            plt.scatter([], [], c='#00ff88', s=150, marker='o', edgecolors='#004d40', linewidths=2, label='Eraser'),
+            plt.scatter([], [], c='#ff6b35', s=150, marker='*', edgecolors='white', linewidths=2, label='Target WR'),
+            plt.scatter([], [], c='#00bcd4', s=100, marker='^', edgecolors='white', linewidths=2, label='Nearest Def'),
+            plt.scatter([], [], c='#9b59b6', s=100, marker='D', edgecolors='white', linewidths=2, label='QB'),
+            plt.scatter([], [], c='#8B4513', s=80, marker='p', edgecolors='white', linewidths=2, label='Ball'),
+            plt.scatter([], [], c='#ffff00', s=100, marker='X', edgecolors='#ff6600', linewidths=2, label='Ball Target'),
+        ]
+        ax.legend(handles=legend_elements, loc='lower right', fontsize=8, 
+                  framealpha=0.95, facecolor='#1a1a2e', edgecolor='white', labelcolor='white',
+                  ncol=2)
 
         # 6. Update Loop
         def update(frame_num):
-            time_sec = (frame_num - start_frame) * 0.1
-            timer_text.set_text(f"T + {time_sec:.1f}s")
+            # Timer relative to throw frame
+            time_sec = (frame_num - throw_frame) * 0.1
+            if frame_num < throw_frame:
+                timer_text.set_text(f"T {time_sec:.1f}s")
+                phase_label.set_text("⏳ PRE THROW")
+                phase_label.get_bbox_patch().set_facecolor('#3498db')
+            else:
+                timer_text.set_text(f"T +{time_sec:.1f}s")
+                phase_label.set_text("🏈 BALL IN AIR")
+                phase_label.get_bbox_patch().set_facecolor('#e74c3c')
 
-            snap = play_frames[play_frames['frame_id'] == frame_num]
+            # Get cached positions for this frame (includes frozen players)
+            frame_positions = player_positions_by_frame.get(frame_num, {})
             
+            # Ball position
             if frame_num in ball_pos_dict:
                 scat_ball.set_offsets([ball_pos_dict[frame_num]])
             
-            eraser = snap[snap['nfl_id'] == eraser_id]
-            target = snap[snap['nfl_id'] == target_id]
-            context = snap[snap['nfl_id'] == context_id] if context_id else pd.DataFrame()
-            others = snap[~snap['nfl_id'].isin([eraser_id, target_id, context_id])]
+            # Build position lists from cache
+            def_others_pos = []
+            off_others_pos = []
             
-            scat_others.set_offsets(others[['x', 'y']].values)
-            if not target.empty: scat_target.set_offsets(target[['x', 'y']].values)
+            excluded_ids = {eraser_id, target_id, context_id}
+            if qb_id:
+                excluded_ids.add(qb_id)
             
-            if not context.empty and context_id != eraser_id: 
-                scat_context.set_offsets(context[['x', 'y']].values)
+            for pid, pos in frame_positions.items():
+                if pid in excluded_ids:
+                    continue
+                role = pos.get('role', '')
+                if role in ['Coverage Defender', 'Pass Rusher', 'Defender']:
+                    def_others_pos.append([pos['x'], pos['y']])
+                elif role not in ['Passer']:
+                    off_others_pos.append([pos['x'], pos['y']])
+            
+            scat_def_others.set_offsets(np.array(def_others_pos) if def_others_pos else np.empty((0, 2)))
+            scat_off_others.set_offsets(np.array(off_others_pos) if off_others_pos else np.empty((0, 2)))
+            
+            # QB (from cache)
+            if qb_id and qb_id in frame_positions:
+                qb_pos = frame_positions[qb_id]
+                qx, qy = qb_pos['x'], qb_pos['y']
+                scat_qb.set_offsets([[qx, qy]])
+                qb_label.set_position((qx, qy + 2.5))
+                q_name = str(qb_name).split()[-1][:8] if qb_name else "QB"
+                qb_label.set_text(q_name)
+            else:
+                scat_qb.set_offsets(np.empty((0, 2)))
+            
+            # Target (from cache)
+            if target_id in frame_positions:
+                target_pos = frame_positions[target_id]
+                tx, ty = target_pos['x'], target_pos['y']
+                scat_target.set_offsets([[tx, ty]])
+                target_label.set_position((tx, ty + 2.5))
+                t_name = str(target_name).split()[-1][:8] if target_name else "WR"
+                target_label.set_text(t_name)
+            
+            # Context defender (from cache, with name label)
+            if context_id and context_id in frame_positions and context_id != eraser_id: 
+                context_pos = frame_positions[context_id]
+                cx, cy = context_pos['x'], context_pos['y']
+                scat_context.set_offsets([[cx, cy]])
+                context_label.set_position((cx, cy + 2.5))
+                c_name = str(context_name).split()[-1][:8] if context_name else "DEF"
+                context_label.set_text(c_name)
             else: 
                 scat_context.set_offsets(np.empty((0, 2)))
+                context_label.set_text('')
                 
-            if not eraser.empty:
-                scat_eraser.set_offsets(eraser[['x', 'y']].values)
-                if not target.empty:
-                    ex, ey = eraser.iloc[0]['x'], eraser.iloc[0]['y']
-                    tx, ty = target.iloc[0]['x'], target.iloc[0]['y']
+            # Eraser (from cache)
+            if eraser_id in frame_positions:
+                eraser_pos = frame_positions[eraser_id]
+                ex, ey = eraser_pos['x'], eraser_pos['y']
+                scat_eraser.set_offsets([[ex, ey]])
+                eraser_label.set_position((ex, ey + 2.5))
+                e_name = str(eraser_name).split()[-1][:8] if eraser_name else "DEF"
+                eraser_label.set_text(e_name)
+                
+                # Speed display
+                speed_yps = eraser_pos.get('s_derived', 0)
+                speed_mph = speed_yps * 2.045 if pd.notna(speed_yps) else 0
+                speed_label.set_text(f"⚡ {speed_mph:.1f} mph")
+                
+                # Void line
+                if target_id in frame_positions:
                     line_void.set_data([ex, tx], [ey, ty])
                     dist = np.sqrt((ex-tx)**2 + (ey-ty)**2)
                     text_void.set_position(((ex+tx)/2, (ey+ty)/2))
                     text_void.set_text(f"{dist:.1f} yds")
             
-            return scat_others, scat_target, scat_eraser, scat_context, scat_ball, line_void, text_void, timer_text
+            return (scat_def_others, scat_off_others, scat_target, scat_eraser, scat_context, 
+                    scat_ball, scat_qb, line_void, text_void, timer_text, phase_label, speed_label,
+                    target_label, eraser_label, qb_label, context_label)
 
         # 7. Render
         print("      ... Rendering frames ...")
-        # Now unique_frames is properly defined
         ani = animation.FuncAnimation(fig, update, frames=unique_frames, interval=100, blit=True)
         
         save_path = os.path.join(self.output_dir, filename)
@@ -1939,6 +1901,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 import matplotlib.patches as patches
+from scipy.interpolate import UnivariateSpline
 
 # Set style for professional report visuals
 sns.set_theme(style="whitegrid", context="talk")
@@ -2042,7 +2005,7 @@ class StoryVisualEngine:
         """
         print("   [VizGen] Generating V2: Race Charts...")
         
-        fig, axes = plt.subplots(2, 2, figsize=(16, 12), sharey=True)
+        fig, axes = plt.subplots(2, 2, figsize=(16, 12))  # Removed sharey=True for independent axes
         axes = axes.flatten()
         quad_order = ['Eraser', 'Lockdown', 'Liability', 'Lost Step']
 
@@ -2086,34 +2049,114 @@ class StoryVisualEngine:
             merged['dist'] = np.sqrt((merged['x_d'] - merged['x_t'])**2 + (merged['y_d'] - merged['y_t'])**2)
             merged['time_sec'] = (merged['frame_id'] - merged['frame_id'].min()) * 0.1
 
-            # PLOT LOGIC
-            # 1. Line & Fill
-            sns.lineplot(data=merged, x='time_sec', y='dist', ax=ax, lw=4, color=color, alpha=0.9)
-            ax.fill_between(merged['time_sec'], merged['dist'], 0, color=color, alpha=0.1)
+            # Apply spline smoothing to reduce tracking noise (s=50 recommended balance)
+            time_arr = merged['time_sec'].values
+            dist_arr = merged['dist'].values
+            
+            # Spline needs at least 4 points and unique x values
+            if len(time_arr) >= 4:
+                try:
+                    spline = UnivariateSpline(time_arr, dist_arr, s=50)
+                    smooth_dist = spline(time_arr)
+                except:
+                    smooth_dist = dist_arr  # Fallback to raw if spline fails
+            else:
+                smooth_dist = dist_arr
+            
+            merged['smooth_dist'] = smooth_dist
+            
+            # Calculate axis limits early (needed for annotations)
+            max_dist = merged['smooth_dist'].max()
+            max_time = merged['time_sec'].max()
 
-            # 2. Markers
+            # PLOT LOGIC
+            # 1. Contested Zone Shading (0-1.5 yards) - light gray background
+            ax.axhspan(0, 1.5, color='#d5d5d5', alpha=0.4, zorder=0)
+            ax.text(max_time * 0.95, 0.75, 'CONTESTED\nZONE', ha='right', va='center',
+                   fontsize=8, color='#666666', style='italic', alpha=0.8)
+            
+            # 2. Smoothed Line & Fill
+            ax.plot(merged['time_sec'], merged['smooth_dist'], lw=4, color=color, alpha=0.9)
+            ax.fill_between(merged['time_sec'], merged['smooth_dist'], 0, color=color, alpha=0.1)
+
+            # 3. Markers (use smoothed values for consistency)
             start = merged.iloc[0]
             end = merged.iloc[-1]
             
-            ax.scatter(start['time_sec'], start['dist'], color=color, s=150, marker='o', zorder=5, edgecolors='white', lw=2)
-            ax.annotate('THROW', (start['time_sec'], start['dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
+            ax.scatter(start['time_sec'], start['smooth_dist'], color=color, s=150, marker='o', zorder=5, edgecolors='white', lw=2)
+            ax.annotate('THROW', (start['time_sec'], start['smooth_dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
 
-            ax.scatter(end['time_sec'], end['dist'], color=color, s=150, marker='X', zorder=5, edgecolors='white', lw=2)
-            ax.annotate('ARRIVAL', (end['time_sec'], end['dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
+            ax.scatter(end['time_sec'], end['smooth_dist'], color=color, s=150, marker='X', zorder=5, edgecolors='white', lw=2)
+            ax.annotate('ARRIVAL', (end['time_sec'], end['smooth_dist']), xytext=(5, 5), textcoords='offset points', fontsize=9, fontweight='bold', color=color)
 
-            # Formatting
+            # 4. Closing Rate annotation (yards closed per second)
+            flight_time = end['time_sec'] - start['time_sec']
+            closing_rate = (start['smooth_dist'] - end['smooth_dist']) / flight_time if flight_time > 0 else 0
+            rate_sign = "+" if closing_rate < 0 else "−"  # Negative = opening up, Positive = closing
+            
+            # Position rate annotation at midpoint of trajectory
+            mid_idx = len(merged) // 2
+            mid_time = merged.iloc[mid_idx]['time_sec']
+            mid_dist = merged.iloc[mid_idx]['smooth_dist']
+            
+            if quad_name in ['Eraser', 'Lockdown']:
+                # Show closing rate for closers
+                ax.annotate(f'{rate_sign}{abs(closing_rate):.1f} yds/sec', 
+                           (mid_time, mid_dist), xytext=(10, -15), textcoords='offset points',
+                           fontsize=10, fontweight='bold', color=color,
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor=color, alpha=0.8),
+                           arrowprops=dict(arrowstyle='->', color=color, lw=1.5))
+            
+            # 5. Decision Point markers for Liability & Lost Step (find inflection point)
+            if quad_name in ['Liability', 'Lost Step']:
+                # Find the minimum point (where trajectory changes direction)
+                smooth_arr = merged['smooth_dist'].values
+                min_idx = np.argmin(smooth_arr)
+                
+                # Only mark if it's not at the start or end (true inflection)
+                if 2 < min_idx < len(smooth_arr) - 2:
+                    inflection_time = merged.iloc[min_idx]['time_sec']
+                    inflection_dist = smooth_arr[min_idx]
+                    
+                    # Decision point marker
+                    ax.scatter(inflection_time, inflection_dist, color='#e67e22', s=200, 
+                              marker='o', zorder=6, edgecolors='white', lw=2)
+                    
+                    label = "Lost leverage" if quad_name == 'Liability' else "Lost balance"
+                    ax.annotate(f'⚠ {label}', (inflection_time, inflection_dist), 
+                               xytext=(8, 12), textcoords='offset points',
+                               fontsize=9, fontweight='bold', color='#c0392b',
+                               bbox=dict(boxstyle='round,pad=0.2', facecolor='#fdebd0', edgecolor='#e67e22', alpha=0.9))
+            
+            # Store flight time for bottom annotation
+            play_meta['flight_time'] = flight_time
+            
+            # Formatting with dynamic limits
             ax.axhline(1.5, color='gray', linestyle=':', lw=2)
             ax.axhline(0, color='black', lw=1)
-            ax.set_ylim(-0.5, 18)
-            ax.set_xlim(0, merged['time_sec'].max() + 0.5)
+            ax.set_ylim(-0.5, max(max_dist * 1.15, 5))  # 15% padding, minimum 5 yards
+            ax.set_xlim(0, max_time + 0.3)  # Small padding on x-axis
             ax.grid(True, alpha=0.3)
             
             if i in [2, 3]: ax.set_xlabel('Seconds After Throw', fontsize=12, fontweight='bold')
             if i in [0, 2]: ax.set_ylabel('Separation (Yards)', fontsize=12, fontweight='bold')
 
         # Global Legend
-        fig.legend(handles=legend_elements, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.05), frameon=False, fontsize=11)
-        plt.tight_layout()
+        fig.legend(handles=legend_elements, loc='lower center', ncol=4, bbox_to_anchor=(0.5, -0.02), frameon=False, fontsize=11)
+        
+        # Flight Time annotation at bottom
+        flight_parts = []
+        for quad_name in quad_order:
+            meta = cast_dict.get(quad_name)
+            if meta and 'flight_time' in meta:
+                flight_parts.append(f"{quad_name}: {meta['flight_time']:.1f}s")
+        
+        if flight_parts:
+            flight_text = "Ball Flight Time — " + " | ".join(flight_parts)
+            fig.text(0.5, -0.06, flight_text, ha='center', va='top', fontsize=10, 
+                    color='#555555', style='italic')
+        
+        plt.tight_layout(rect=[0, 0.02, 1, 1])  # Leave room for bottom annotations
         
         output_path = os.path.join(self.output_dir, 'V2_Race_Charts.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -2166,6 +2209,147 @@ class StoryVisualEngine:
         output_path = os.path.join(self.output_dir, 'V3_Coverage_Heatmap.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
+
+    # =========================================
+    # VISUAL 4: EPA/YAC IMPACT CHART
+    # =========================================
+    def plot_effort_impact_chart(self):
+        """
+        Slope chart showing Effort → Outcome (EPA/YAC saved).
+        Ties the story together: Context → Effort → Result.
+        """
+        print("   [VizGen] Generating V4: Effort Impact Chart...")
+        df = self.summary_df.copy()
+        
+        # 1. Filter for Completions Only (where damage occurs)
+        completed = df[df['pass_result'] == 'C'].copy()
+        
+        if completed.empty:
+            print("      [!] Skipping Impact Chart: No completions found.")
+            return
+        
+        # 2. Derive YAC
+        completed['yac'] = completed['yards_gained'] - completed['pass_length']
+        
+        # 3. Create Start Distance bands
+        dist_bins = [0, 3, 6, 10, 100]
+        dist_labels = ['Tight\n(0-3 yds)', 'Medium\n(3-6 yds)', 'High Void\n(6-10 yds)', 'Exempt\n(10+ yds)']
+        completed['start_band'] = pd.cut(completed['p_dist_at_throw'], bins=dist_bins, labels=dist_labels)
+        
+        # 4. Calculate VIS quartiles WITHIN each start band
+        def get_quartile_label(group):
+            q25 = group['vis_score'].quantile(0.25)
+            q75 = group['vis_score'].quantile(0.75)
+            conditions = [
+                group['vis_score'] <= q25,
+                group['vis_score'] >= q75
+            ]
+            choices = ['Low Effort', 'High Effort']
+            group['effort_bucket'] = np.select(conditions, choices, default='Middle')
+            return group
+        
+        completed = completed.groupby('start_band', group_keys=False, observed=False).apply(get_quartile_label)
+        
+        # 5. Filter to only Q1 and Q4 for clean comparison
+        extremes = completed[completed['effort_bucket'].isin(['Low Effort', 'High Effort'])]
+        
+        # 6. Aggregate by band and effort
+        impact_data = extremes.groupby(['start_band', 'effort_bucket'], observed=False).agg(
+            avg_epa=('expected_points_added', 'mean'),
+            avg_yac=('yac', 'mean'),
+            count=('play_id', 'count')
+        ).reset_index()
+        
+        # 7. Create the figure with two subplots (EPA and YAC)
+        fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+        
+        bands = ['Tight\n(0-3 yds)', 'Medium\n(3-6 yds)', 'High Void\n(6-10 yds)', 'Exempt\n(10+ yds)']
+        x_positions = np.arange(len(bands))
+        
+        for ax_idx, (metric, title, ylabel) in enumerate([
+            ('avg_epa', 'EPA Impact: Effort Saves Points', 'Expected Points Added'),
+            ('avg_yac', 'YAC Impact: Effort Limits Damage', 'Yards After Catch')
+        ]):
+            ax = axes[ax_idx]
+            
+            # Get data for each effort level
+            low_effort = []
+            high_effort = []
+            savings = []
+            
+            for band in bands:
+                low_row = impact_data[(impact_data['start_band'] == band) & (impact_data['effort_bucket'] == 'Low Effort')]
+                high_row = impact_data[(impact_data['start_band'] == band) & (impact_data['effort_bucket'] == 'High Effort')]
+                
+                low_val = low_row[metric].values[0] if not low_row.empty else np.nan
+                high_val = high_row[metric].values[0] if not high_row.empty else np.nan
+                
+                low_effort.append(low_val)
+                high_effort.append(high_val)
+                savings.append(low_val - high_val if pd.notna(low_val) and pd.notna(high_val) else np.nan)
+            
+            # Plot bars - calmer colors
+            bar_width = 0.35
+            bars_low = ax.bar(x_positions - bar_width/2, low_effort, bar_width, 
+                             label='Low Effort (Q1)', color='#d98880', alpha=0.85, edgecolor='white', linewidth=1.5)
+            bars_high = ax.bar(x_positions + bar_width/2, high_effort, bar_width, 
+                              label='High Effort (Q4)', color='#7dcea0', alpha=0.85, edgecolor='white', linewidth=1.5)
+            
+            # Add value labels on bars
+            for bar in bars_low:
+                height = bar.get_height()
+                if pd.notna(height):
+                    ax.annotate(f'{height:.2f}',
+                               xy=(bar.get_x() + bar.get_width()/2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9, fontweight='bold', color='#943126')
+            
+            for bar in bars_high:
+                height = bar.get_height()
+                if pd.notna(height):
+                    ax.annotate(f'{height:.2f}',
+                               xy=(bar.get_x() + bar.get_width()/2, height),
+                               xytext=(0, 3), textcoords="offset points",
+                               ha='center', va='bottom', fontsize=9, fontweight='bold', color='#1e8449')
+            
+            # Add savings labels (no arrows, positioned at bottom of chart to avoid overlap)
+            max_height = max([v for v in low_effort + high_effort if pd.notna(v)]) if any(pd.notna(v) for v in low_effort + high_effort) else 2
+            
+            for i, saved in enumerate(savings):
+                if pd.notna(saved) and saved > 0:
+                    unit = 'EPA' if metric == 'avg_epa' else 'YAC'
+                    # Position label below x-axis to avoid overlap with title
+                    ax.text(x_positions[i], -0.15 if metric == 'avg_epa' else -0.4, 
+                           f'Saved: {saved:.2f} {unit}', 
+                           ha='center', va='top', fontsize=9, fontweight='bold',
+                           color='#1a5276', 
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='#d5f5e3', edgecolor='#1e8449', alpha=0.9))
+            
+            # Formatting
+            ax.set_xticks(x_positions)
+            ax.set_xticklabels(bands, fontsize=10)
+            ax.set_xlabel('Starting Distance Band', fontsize=12, fontweight='bold')
+            ax.set_ylabel(ylabel, fontsize=12, fontweight='bold')
+            ax.set_title(title, fontsize=14, fontweight='bold', pad=15)
+            ax.legend(loc='upper right', fontsize=9)
+            ax.axhline(0, color='black', linewidth=0.5)
+            ax.grid(axis='y', alpha=0.3)
+            
+            # Set y-limits with padding for labels
+            if metric == 'avg_epa':
+                ax.set_ylim(bottom=-0.6, top=max_height + 0.5)
+            else:
+                ax.set_ylim(bottom=-1.0, top=max_height + 0.8)
+        
+        # Overall title
+        fig.suptitle('The Payoff of Erasure: High-Effort Defenders Save Points & Yards', 
+                     fontsize=16, fontweight='bold', y=0.98)
+        
+        plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Leave room for labels and title
+        output_path = os.path.join(self.output_dir, 'V4_Effort_Impact_Chart.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"      -> Saved: {output_path}")
 import pandas as pd
 import numpy as np
 
@@ -2177,34 +2361,6 @@ class TableGenerator:
         # We exclude Pass Rushers who occasionally drop into coverage
         self.df = self.df[self.df['player_role'].isin([
             'Defensive Coverage', 'Cornerback', 'Safety', 'Linebacker'])]
-
-    def generate_leaderboard(self, min_snaps=15):
-        """
-        TABLE 1: Player/Team Eraser Table
-        Top and Bottom defenders by CEOE.
-        """
-
-        # Aggregation
-        leaderboard = self.df.groupby(['nfl_id', 'player_position']).agg(
-            snaps=('play_id', 'count'),
-            avg_ceoe=('ceoe_score', 'mean'),
-            avg_vis=('vis_score', 'mean'),
-            avg_start_dist=('p_dist_at_throw', 'mean') 
-        ).reset_index()
-
-        # Filter for Significance (The Law of Large Numbers)
-        qualified = leaderboard[leaderboard['snaps'] >= min_snaps].copy()
-
-        # Formatting
-        qualified['avg_ceoe'] = qualified['avg_ceoe'].round(3)
-        qualified['avg_vis'] = qualified['avg_vis'].round(2)
-        qualified['avg_start_dist'] = qualified['avg_start_dist'].round(1)
-
-        # Sort
-        top_erasers = qualified.sort_values('avg_ceoe', ascending=False).head(10)
-        bottom_erasers = qualified.sort_values('avg_ceoe', ascending=True).head(10)
-
-        return top_erasers, bottom_erasers
 
     def generate_quadrant_counts(self):
         """
@@ -2243,60 +2399,30 @@ class TableGenerator:
 
         return summary.sort_values('avg_vis', ascending=False)
 
-    def generate_situational_summary(self):
-        """
-        TABLE 3: Situation Summary Table (Context Check)
-        Shows how the metric behaves across Coverage Types and Downs.
-        """
-        # Grouping
-        # We fill NA coverage types just in case
-        df = self.df.copy()
-        df['team_coverage_type'] = df['team_coverage_type'].fillna('Unknown')
-
-        situation = df.groupby(['team_coverage_type', 'down']).agg(
-            snaps=('play_id', 'count'),
-            avg_s_throw=('p_dist_at_throw', 'mean'), 
-            avg_s_arrival=('dist_at_arrival', 'mean'),
-            avg_vis=('vis_score', 'mean')
-        ).reset_index()
-
-        # Filter out rare situations (e.g., prevent "Cover 0 on 4th down" with 1 play from skewing data)
-        situation = situation[situation['snaps'] > 5]
-
-        # Rounding
-        cols = ['avg_s_throw', 'avg_s_arrival', 'avg_vis']
-        situation[cols] = situation[cols].round(2)
-
-        return situation
-
     def generate_shrunk_leaderboard(self, min_snaps=15, prior_m=20):
         """
-        TASK 2: Bayesian Shrinkage.
-        Shrinks raw CEOE towards the POSITIONAL mean (not global mean).
-        Formula: (n * raw + m * pos_avg) / (n + m)
+        TASK 2: Bayesian Shrinkage with Names.
         """
-        # 1. Calculate Positional Priors (The Baseline)
-        # e.g., Average CEOE for all CBs might be 0.5, for LBs might be -0.2
+        # 1. Positional Priors
         pos_stats = self.df.groupby('player_position')['ceoe_score'].mean().to_dict()
 
-        # 2. Aggregate Player Stats
-        # We group by ID and Position
-        player_stats = self.df.groupby(['nfl_id', 'player_position', 'player_role']).agg(
+        # 2. Add player_name to grouping
+        group_cols = ['nfl_id', 'player_position', 'player_role']
+        if 'player_name' in self.df.columns:
+            group_cols.insert(1, 'player_name')
+
+        player_stats = self.df.groupby(group_cols).agg(
             snaps=('play_id', 'count'),
             raw_ceoe=('ceoe_score', 'mean'),
             avg_vis=('vis_score', 'mean'),
             avg_start=('p_dist_at_throw', 'mean')
         ).reset_index()
 
-        # 3. Apply Shrinkage Function
+        # 3. Shrinkage
         def apply_shrinkage(row):
-            # Get the prior for this specific position (default to 0 if unknown)
             prior_mu = pos_stats.get(row['player_position'], 0.0)
-            
             n = row['snaps']
             m = prior_m
-            
-            # The Bayesian Average
             shrunk = ((n * row['raw_ceoe']) + (m * prior_mu)) / (n + m)
             return shrunk
 
@@ -2305,48 +2431,14 @@ class TableGenerator:
         # 4. Filter & Sort
         qualified = player_stats[player_stats['snaps'] >= min_snaps].copy()
         
-        # Rounding for display
         qualified['shrunk_ceoe'] = qualified['shrunk_ceoe'].round(3)
         qualified['raw_ceoe'] = qualified['raw_ceoe'].round(3)
         qualified['avg_vis'] = qualified['avg_vis'].round(2)
         qualified['avg_start'] = qualified['avg_start'].round(1)
 
-        # Sort by the new robust metric
         top_erasers = qualified.sort_values('shrunk_ceoe', ascending=False).head(10)
         
         return top_erasers
-
-    def generate_outcome_alignment(self):
-        """
-        TASK 1: Outcome Alignment Test within Bands.
-        Hypothesis: Within the same distance band, higher VIS = more Incompletions.
-        """
-        df = self.df.copy()
-        
-        # 1. Binning Logic (S_throw)
-        bins = [0, 3, 6, 10, 100]
-        labels = ['Tight (0-3)', 'Medium (3-6)', 'High Void (6-10)', 'Deep (10+)']
-        df['start_band'] = pd.cut(df['p_dist_at_throw'], bins=bins, labels=labels)
-
-        # 2. Define Outcome (Binary)
-        # We treat Interceptions (IN) as Incomplete (Prevented Catch)
-        valid_outcomes = ['C', 'I', 'IN']
-        df = df[df['pass_result'].isin(valid_outcomes)]
-        
-        df['outcome_type'] = np.where(df['pass_result'] == 'C', 'Allowed Catch', 'Prevented Catch')
-
-        # 3. Aggregate VIS by Band + Outcome
-        alignment = df.groupby(['start_band', 'outcome_type'], observed=False)['vis_score'].mean().reset_index()
-
-        # 4. Pivot for clear comparison
-        pivot = alignment.pivot(index='start_band', columns='outcome_type', values='vis_score')
-        
-        # 5. Calculate the "Eraser Gap"
-        # Positive Gap = Good Metric (Prevented catches had higher erasure)
-        pivot['VIS_Gap'] = pivot['Prevented Catch'] - pivot['Allowed Catch']
-        
-        return pivot.round(2)
-
 
     def generate_damage_control_validation(self):
         """
@@ -2392,8 +2484,194 @@ class TableGenerator:
         yac_pivot['YAC_Savings'] = yac_pivot['Negative (Lost Gap)'] - yac_pivot['High Erasure (3+)']
         
         return yac_pivot.round(2)
-    
 
+    def generate_epa_savings(self):
+        """
+        TABLE 5: EPA Savings Table (Quartile Approach).
+        Shows how much Expected Points high-effort defenders save vs low-effort defenders.
+        Uses within-band quartiles to avoid structural NaNs.
+        Focuses on COMPLETED passes where EPA damage occurs.
+        """
+        df = self.df.copy()
+        
+        # 1. Filter for Completions Only (where EPA damage occurs)
+        completed = df[df['pass_result'] == 'C'].copy()
+        
+        if completed.empty:
+            return "No completions found in dataset."
+        
+        # 2. Create Start Distance bands
+        dist_bins = [0, 3, 6, 10, 100]
+        dist_labels = ['Tight (0-3)', 'Medium (3-6)', 'High Void (6-10)', 'Exempt (10+)']
+        completed['start_band'] = pd.cut(completed['p_dist_at_throw'], bins=dist_bins, labels=dist_labels)
+        
+        # 3. Calculate VIS quartiles WITHIN each start band
+        # This avoids NaNs by making "effort" relative to what's possible from each start position
+        def get_quartile_label(group):
+            q25 = group['vis_score'].quantile(0.25)
+            q75 = group['vis_score'].quantile(0.75)
+            
+            conditions = [
+                group['vis_score'] <= q25,
+                group['vis_score'] >= q75
+            ]
+            choices = ['Low Effort (Q1)', 'High Effort (Q4)']
+            group['effort_bucket'] = np.select(conditions, choices, default='Middle (Q2-Q3)')
+            return group
+        
+        completed = completed.groupby('start_band', group_keys=False, observed=False).apply(get_quartile_label)
+        
+        # 4. Filter to only Q1 and Q4 for clean comparison
+        extremes = completed[completed['effort_bucket'].isin(['Low Effort (Q1)', 'High Effort (Q4)'])]
+        
+        # 5. Aggregate EPA by Start Band and Effort Bucket
+        epa_table = extremes.groupby(['start_band', 'effort_bucket'], observed=False).agg(
+            play_count=('play_id', 'count'),
+            avg_epa=('expected_points_added', 'mean')
+        ).reset_index()
+        
+        # 6. Pivot for clear comparison
+        epa_pivot = epa_table.pivot(index='start_band', columns='effort_bucket', values='avg_epa')
+        
+        # 7. Calculate EPA Saved (Low Effort EPA - High Effort EPA)
+        # Positive = High effort defenders saved points
+        if 'Low Effort (Q1)' in epa_pivot.columns and 'High Effort (Q4)' in epa_pivot.columns:
+            epa_pivot['EPA_Saved'] = epa_pivot['Low Effort (Q1)'] - epa_pivot['High Effort (Q4)']
+        
+        # 8. Add play counts for context
+        count_pivot = epa_table.pivot(index='start_band', columns='effort_bucket', values='play_count')
+        epa_pivot['Plays_Compared'] = count_pivot.sum(axis=1)
+        
+        # Reorder columns for clarity
+        col_order = ['Low Effort (Q1)', 'High Effort (Q4)', 'EPA_Saved', 'Plays_Compared']
+        epa_pivot = epa_pivot[[c for c in col_order if c in epa_pivot.columns]]
+        
+        return epa_pivot.round(3)
+
+    def generate_position_breakdown(self):
+        """
+        TABLE 6: Position Breakdown - "Who Should Erase?"
+        Shows which position groups are best suited for the Eraser role.
+        Uses RAW metrics (not shrunk) for position-level comparisons.
+        """
+        df = self.df.copy()
+        
+        # 1. Define Eraser criteria (derived from start/end distances, not void_type)
+        # Eraser = Started in High Void (>6yds) AND closed to tight (<2yds)
+        OPEN_THRESH = 6.0
+        CLOSED_THRESH = 2.0
+        df['is_eraser_play'] = (df['p_dist_at_throw'] >= OPEN_THRESH) & (df['dist_at_arrival'] <= CLOSED_THRESH)
+        
+        # 2. Group by player position
+        position_stats = df.groupby('player_position').agg(
+            play_count=('play_id', 'count'),
+            avg_start_dist=('p_dist_at_throw', 'mean'),
+            avg_end_dist=('dist_at_arrival', 'mean'),
+            avg_vis=('vis_score', 'mean'),
+            eraser_plays=('is_eraser_play', 'sum')
+        ).reset_index()
+        
+        # 3. Calculate Eraser Rate (% of plays where they achieved Eraser outcome)
+        position_stats['eraser_rate'] = (position_stats['eraser_plays'] / position_stats['play_count'] * 100).round(1)
+        
+        # 4. Filter for positions with meaningful sample size
+        position_stats = position_stats[position_stats['play_count'] >= 50].copy()
+        
+        # 5. Derive Erasure Archetype based on behavior patterns
+        def assign_archetype(row):
+            avg_start = row['avg_start_dist']
+            avg_vis = row['avg_vis']
+            eraser_rate = row['eraser_rate']
+            
+            # Primary Eraser: Deep starters who close aggressively
+            if avg_start >= 8 and avg_vis >= 1.5:
+                return "🟢 Primary Eraser"
+            # Secondary Eraser: Medium depth with good closing
+            elif avg_start >= 6 and avg_vis >= 1.0:
+                return "🔵 Secondary Eraser"
+            # Lockdown: Tight coverage specialists (low start = already close)
+            elif avg_start < 5 and avg_vis < 0.5:
+                return "🟡 Lockdown Focus"
+            # Situational: High eraser rate despite moderate metrics
+            elif eraser_rate >= 5:
+                return "🟠 Situational Eraser"
+            else:
+                return "⚪ Zone Support"
+        
+        position_stats['archetype'] = position_stats.apply(assign_archetype, axis=1)
+        
+        # 6. Format output columns
+        position_stats['avg_start_dist'] = position_stats['avg_start_dist'].round(1)
+        position_stats['avg_end_dist'] = position_stats['avg_end_dist'].round(1)
+        position_stats['avg_vis'] = position_stats['avg_vis'].round(2)
+        
+        # 7. Select and order columns for output
+        # Note: Dropping raw_ceoe as it regresses toward positional means (~0) and confuses readers
+        # VIS and archetype provide clearer differentiation
+        output_cols = ['player_position', 'play_count', 'avg_start_dist', 'avg_end_dist',
+                       'avg_vis', 'eraser_rate', 'archetype']
+        
+        # Sort by avg_start_dist descending (deep players first = primary erasers)
+        return position_stats[output_cols].sort_values('avg_start_dist', ascending=False)
+
+    def generate_void_effect_size(self):
+        """
+        TABLE: Void Effect Size Analysis
+        Shows completion %, EPA, and YAC by S_throw band with effect size 
+        (Δ from Tight baseline) to quantify the jump in difficulty.
+        """
+        df = self.df.copy()
+        
+        # Define S_throw bands based on dist_at_throw (original separation)
+        dist_col = 'p_dist_at_throw' if 'p_dist_at_throw' in df.columns else 'dist_at_throw'
+        
+        bins = [0, 2, 6, 10, float('inf')]
+        labels = ['Tight (0-2 yds)', 'Medium (3-6 yds)', 'High Void (6-10 yds)', 'Deep (10+ yds)']
+        df['start_band'] = pd.cut(df[dist_col], bins=bins, labels=labels, include_lowest=True)
+        
+        # Derive YAC for completions (yards_gained - pass_length)
+        df['yac'] = df['yards_gained'] - df['pass_length']
+        
+        # Calculate metrics by band
+        band_stats = df.groupby('start_band', observed=False).agg(
+            play_count=('play_id', 'count'),
+            completions=('pass_result', lambda x: (x == 'C').sum()),
+            avg_epa=('expected_points_added', 'mean')
+        ).reset_index()
+        
+        # Calculate YAC separately (only for completions)
+        completed = df[df['pass_result'] == 'C']
+        yac_by_band = completed.groupby('start_band', observed=False)['yac'].mean().reset_index()
+        yac_by_band.columns = ['start_band', 'avg_yac']
+        
+        # Merge YAC back
+        band_stats = band_stats.merge(yac_by_band, on='start_band', how='left')
+        
+        # Calculate completion percentage
+        band_stats['completion_pct'] = (band_stats['completions'] / band_stats['play_count'] * 100).round(1)
+        
+        # Calculate effect size (Δ from Tight baseline)
+        tight_completion = band_stats.loc[band_stats['start_band'] == 'Tight (0-2 yds)', 'completion_pct'].values
+        if len(tight_completion) > 0:
+            tight_baseline = tight_completion[0]
+            band_stats['delta_from_tight'] = band_stats['completion_pct'] - tight_baseline
+            band_stats['delta_from_tight'] = band_stats['delta_from_tight'].apply(
+                lambda x: f"+{x:.1f}pp" if x > 0 else ("—" if x == 0 else f"{x:.1f}pp")
+            )
+        else:
+            band_stats['delta_from_tight'] = "—"
+        
+        # Format other columns
+        band_stats['avg_epa'] = band_stats['avg_epa'].round(2)
+        band_stats['avg_yac'] = band_stats['avg_yac'].round(1)
+        band_stats['completion_pct'] = band_stats['completion_pct'].apply(lambda x: f"{x}%")
+        
+        # Select and rename columns for output
+        output = band_stats[['start_band', 'play_count', 'completion_pct', 'delta_from_tight', 'avg_epa', 'avg_yac']]
+        output.columns = ['S_throw Band', 'Play Count', 'Completion %', 'Δ from Tight', 'Avg EPA Allowed', 'Avg YAC']
+        
+        return output
+    
 if __name__ == "__main__":
     SUMMARY_FILE = "data/processed/eraser_analysis_summary.csv"
     
@@ -2404,15 +2682,18 @@ if __name__ == "__main__":
     
     print("\n--- QUADRANT SUMMARY ---")
     print(gen.generate_quadrant_counts().to_string(index=False))
-    
-    print("\n--- SITUATIONAL CONTEXT ---")
-    print(gen.generate_situational_summary().head(10).to_string(index=False))
-    
-    print("\n--- OUTCOME ALIGNMENT (The Validity Test) ---")
-    print(gen.generate_outcome_alignment())
 
     print("\n--- DAMAGE CONTROL VALIDATION (YAC) ---")
     print(gen.generate_damage_control_validation())
+
+    print("\n--- EPA SAVINGS TABLE ---")
+    print(gen.generate_epa_savings())
+    
+    print("\n--- POSITION BREAKDOWN (Who Should Erase?) ---")
+    print(gen.generate_position_breakdown().to_string(index=False))
+    
+    print("\n--- VOID EFFECT SIZE (Δ from Tight Baseline) ---")
+    print(gen.generate_void_effect_size().to_string(index=False))
 from story_data_engine import StoryDataEngine
 from story_visual_engine import StoryVisualEngine
 from animation_engine import AnimationEngine
@@ -2423,7 +2704,7 @@ def main():
     # PATHS
     SUMMARY = "data/processed/eraser_analysis_summary.csv"
     ANIMATION = "data/processed/master_animation_data.csv"
-    OUTPUT = "data/visuals_final"
+    OUTPUT = "static/visuals"
 
     # Finds the 4 Archetypes automatically based on your strict logic
     print("\n--- STEP 1: CASTING ARCHETYPES ---")
@@ -2438,11 +2719,12 @@ def main():
         else:
             print(f"   -> {role}: [NO CANDIDATE FOUND]")
 
-    # Generates Figures 1, 2, 3
+    # Viz
     viz = StoryVisualEngine(SUMMARY, ANIMATION, OUTPUT)
     viz.plot_eraser_landscape(cast_dict) 
     viz.plot_race_charts(cast_dict)
     viz.plot_coverage_heatmap()
+    viz.plot_effort_impact_chart()  # NEW: EPA/YAC Impact Chart
 
     # Animation
     animator = AnimationEngine(SUMMARY, ANIMATION, OUTPUT)
@@ -2455,7 +2737,6 @@ def main():
         eraser_id=eraser_meta['nfl_id'], 
         filename="Figure_4_Eraser_Highlight.gif" 
     )
-
     print("\n=== VISUALIZATION COMPLETE ===")
 
 if __name__ == "__main__":
