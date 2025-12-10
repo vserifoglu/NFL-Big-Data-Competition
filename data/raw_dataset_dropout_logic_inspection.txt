@@ -1,0 +1,33 @@
+THE IRRELEVANCE HYPOTHESIS TEST
+===============================
+Hypothesis: Players are dropped in the Output file because they are far from the landing spot.
+
+1. Distance to Landing Spot (Stats):
+          count       mean       std       min        25%        50%        75%        max
+status                                                                                    
+Ghost     906.0  19.845573  9.067352  0.827644  13.451792  18.329534  25.233789  57.268650
+Survivor  331.0   8.422917  5.232197  0.221358   5.023642   7.212006  10.128747  30.418641
+
+2. Danger Ghosts (< 15.0 yards from landing):
+   Count: 306
+   ⚠️ WARNING: Some players close to the catch point are disappearing!
+   Sample of these missing players:
+         game_id  play_id         player_role  dist_to_landing
+489   2023090700      194  Other Route Runner         7.814054
+553   2023090700      194  Other Route Runner         9.613846
+617   2023090700      194              Passer        14.950209
+734   2023090700      219  Defensive Coverage        12.335518
+768   2023090700      219  Defensive Coverage        10.470577
+802   2023090700      219  Other Route Runner         4.064836
+1227  2023090700      361  Other Route Runner        14.704374
+1471  2023090700      436  Defensive Coverage        11.187002
+1591  2023090700      436  Other Route Runner         6.416269
+1631  2023090700      436              Passer        12.158770
+1835  2023090700      461  Other Route Runner        11.254448
+1970  2023090700      530  Defensive Coverage        14.062007
+2170  2023090700      530  Other Route Runner         7.046432
+2268  2023090700      621  Defensive Coverage        11.785045
+2297  2023090700      621  Defensive Coverage         8.619294
+
+3. Missing Targeted Receivers: 0
+   ✅ PASS: Targeted Receiver always survives.

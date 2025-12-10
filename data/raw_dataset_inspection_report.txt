@@ -1,0 +1,134 @@
+🏈 BIG DATA BOWL 2026: RAW DATASET INSPECTION REPORT
+Generated on: 2025-12-05 14:41:28.349025
+====================================================
+
+PART 1: SUPPLEMENTARY DATA (METADATA)
+-------------------------------------
+File: ../data/supplementary_data.csv
+Shape: (18009, 41)
+Columns: ['game_id', 'season', 'week', 'game_date', 'game_time_eastern', 'home_team_abbr', 'visitor_team_abbr', 'play_id', 'play_description', 'quarter', 'game_clock', 'down', 'yards_to_go', 'possession_team', 'defensive_team', 'yardline_side', 'yardline_number', 'pre_snap_home_score', 'pre_snap_visitor_score', 'play_nullified_by_penalty', 'pass_result', 'pass_length', 'offense_formation', 'receiver_alignment', 'route_of_targeted_receiver', 'play_action', 'dropback_type', 'dropback_distance', 'pass_location_type', 'defenders_in_the_box', 'team_coverage_man_zone', 'team_coverage_type', 'penalty_yards', 'pre_penalty_yards_gained', 'yards_gained', 'expected_points', 'expected_points_added', 'pre_snap_home_team_win_probability', 'pre_snap_visitor_team_win_probability', 'home_team_win_probability_added', 'visitor_team_win_probility_added']
+
+>>> Coverage Types Distribution:
+team_coverage_man_zone
+ZONE_COVERAGE    12783
+MAN_COVERAGE      5221
+NaN                  5
+
+>>> Pass Results:
+pass_result
+C     12470
+I      5106
+IN      433
+
+>>> Null Values in Critical Columns:
+game_id               0
+play_id               0
+team_coverage_type    5
+pass_length           0
+
+PART 2: TRACKING DATA TOPOLOGY
+------------------------------
+Total Input Files (Pre-Throw): 18
+Total Output Files (Post-Throw): 18
+
+PART 3: DEEP SAMPLE ANALYSIS (WEEK 1)
+-------------------------------------
+Loading Sample Pair:
+  - input_2023_w01.csv
+  - output_2023_w01.csv
+
+3.1 Column Consistency Check:
+⚠️ Schema Mismatch detected!
+Only in Input: {'player_name', 's', 'player_to_predict', 'o', 'player_role', 'ball_land_y', 'player_height', 'play_direction', 'player_weight', 'player_side', 'absolute_yardline_number', 'dir', 'ball_land_x', 'a', 'player_position', 'player_birth_date', 'num_frames_output'}
+Only in Output: set()
+
+3.2 Sample Statistics (Week 1):
+Input Rows (Pre-Throw): 285,714
+Output Rows (Post-Throw): 32,088
+
+3.3 Stitching Logic Inspection:
+Sample Play (2023090700 - 101):
+  - Max Input Frame: 26
+  - Min Output Frame: 1 (Should be 1)
+  - Gap Analysis: Input ends at 26, Output starts at 1. Offset required.
+
+3.4 Player Roles in Tracking Data:
+Defensive Coverage, Other Route Runner, Passer, Targeted Receiver
+
+3.5 Coordinate Bounds (Raw Data):
+  - X Range: 1.21 to 119.86
+  - Y Range: 0.97 to 52.43
+  *Note: If X goes > 100, standard NFL coords (0-120) are likely used.*
+
+3.6 Ball Landing Spot Availability:
+  - Percentage of rows with Missing 'ball_land_x': 0.00%
+PART 4: AGGREGATE SCAN (ALL WEEKS)
+----------------------------------
+  - w01: 317,802 rows | 16 games | 819 plays
+  - w02: 320,766 rows | 16 games | 850 plays
+  - w03: 333,837 rows | 16 games | 904 plays
+  - w04: 302,622 rows | 16 games | 779 plays
+  - w05: 284,098 rows | 14 games | 742 plays
+  - w06: 301,838 rows | 15 games | 793 plays
+  - w07: 261,040 rows | 13 games | 693 plays
+  - w08: 314,028 rows | 16 games | 827 plays
+  - w09: 281,087 rows | 14 games | 711 plays
+  - w10: 289,380 rows | 14 games | 721 plays
+  - w11: 271,036 rows | 14 games | 707 plays
+  - w12: 327,096 rows | 16 games | 854 plays
+  - w13: 263,323 rows | 13 games | 666 plays
+  - w14: 312,845 rows | 15 games | 796 plays
+  - w15: 314,535 rows | 16 games | 791 plays
+  - w16: 352,925 rows | 16 games | 896 plays
+  - w17: 310,658 rows | 16 games | 809 plays
+  - w18: 284,599 rows | 16 games | 750 plays
+
+TOTAL DATASET STATS:
+  - Total Rows: 5,443,515
+  - Unique Games: 272
+  - Unique Plays: 14108
+
+
+🏈 BIG DATA BOWL 2026: RAW DATASET INSPECTION REPORT
+====================================================
+
+Files Found: 18 Input pairs, 18 Output pairs.
+
+PART 3: WEEK 1 DEEP DIVE & SPARSITY PROOF
+-----------------------------------------
+3.7 PLAYER DROPOUT & TEMPORAL SPARSITY ANALYSIS
+   (Proving that pre_throw frames > post_throw and identifying missing players)
+
+   A. Temporal Differences (Frame Counts):
+      - Avg Pre-Throw Frames:  28.27
+      - Avg Post-Throw Frames: 11.06
+      - Conclusion: On average, input files are 2.89x longer than output files.
+
+   B. Entity Dropout (Players vanishing in Output):
+      - Total Plays Analyzed: 819
+      - Plays with AT LEAST ONE missing player: 819 (100.00%)
+      - Avg Missing Players per Play: 9.05
+      - Max Missing Players in a single play: 13
+
+   C. Profile of Vanishing Players (Sample):
+      Sample Play (Game 2023091004, Play 219):
+      Missing 13 players in Output.
+ nfl_id      player_name        player_role player_position
+  54583    Akayleb Evans Defensive Coverage              CB
+  47816     Byron Murphy Defensive Coverage              CB
+  53554     Camryn Bynum Defensive Coverage              FS
+  38559   Harrison Smith Defensive Coverage              FS
+  42427     Jordan Hicks Defensive Coverage             ILB
+  52613    Josh Metellus Defensive Coverage              SS
+  55967   Mekhi Blackmon Defensive Coverage              CB
+  53519 Patrick Jones II Defensive Coverage             OLB
+  54571       Cade Otton Other Route Runner              TE
+  44896 Chris Godwin Jr. Other Route Runner              WR
+  55075  Deven Thompkins Other Route Runner              WR
+  41233       Mike Evans Other Route Runner              WR
+  46070   Baker Mayfield             Passer              QB
+
+      Observation: 0.0% of missing players in this sample are Linemen.
+      (Hypothesis: Tracking data often drops interior linemen post-throw if they are not near the play.)
+
+Inspection complete. See 'data_inspection_results.txt' for details.

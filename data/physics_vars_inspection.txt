@@ -1,0 +1,26 @@
+PHYSICS VARIABLES AVAILABILITY REPORT
+=======================================
+
+1. Column Existence Check:
+   Input Files Missing: None (All present)
+   Output Files Missing: ['s', 'a', 'dir', 'o']
+
+2. Data Content Check (Are they full of NaNs?):
+   [INPUT FILES]
+     - s: 0.0% Nulls
+     - a: 0.0% Nulls
+     - dir: 0.0% Nulls
+     - o: 0.0% Nulls
+
+   [OUTPUT FILES]
+     - s: COLUMN MISSING
+     - a: COLUMN MISSING
+     - dir: COLUMN MISSING
+     - o: COLUMN MISSING
+
+3. CRITICAL IMPLICATIONS:
+   The Output files lack motion vectors.
+   IMPACT 1 (Animation): You cannot use 'dir' arrows in visualization.
+   IMPACT 2 (Normalization): 'data_preprocessor.py' tries to flip 'dir'/'o' for left-moving plays.
+             If these columns are missing, that code block will crash.
+   IMPACT 3 (Physics): You must DERIVE speed/direction from x,y changes if needed.
