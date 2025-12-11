@@ -7,7 +7,6 @@ from matplotlib.offsetbox import AnchoredText
 from matplotlib.patches import Circle, Ellipse
 import os
 
-
 NFL_TEAM_COLORS = {
     'BAL': {'primary': '#241773', 'secondary': '#000000', 'alternate': '#9E7C0C'},
     'CIN': {'primary': '#FB4F14', 'secondary': '#000000'},
@@ -79,7 +78,6 @@ class AnimationEngine:
         ez_right = patches.Rectangle((110, 0), 10, 53.3, facecolor='#1b5e20', edgecolor='white', linewidth=2, zorder=0)
         ax.add_patch(ez_left)
         ax.add_patch(ez_right)
-
         # Add subtle diagonal lines in end zones for NFL feel
         for y in np.arange(0, 53.3, 2):
             ax.plot([0, 10], [y, y+2], color='white', alpha=0.1, lw=1)
@@ -115,14 +113,13 @@ class AnimationEngine:
         # Add NFL logo at center for elite feel
         ax.text(60, 26.65, 'NFL', ha='center', va='center', fontsize=24, fontweight='bold',
                 color='white', alpha=0.15)
-
         # Goal posts (simplified Y-shape projection)
         gp_color = '#FFD700'  
-        
+       
         # Left goal post
         ax.plot([0, 0], [23.65, 29.65], color=gp_color, lw=4)  
-        ax.plot([-1, 1], [26.65, 26.65], color=gp_color, lw=4) 
-        
+        ax.plot([-1, 1], [26.65, 26.65], color=gp_color, lw=4)
+       
         # Right goal post
         ax.plot([120, 120], [23.65, 29.65], color=gp_color, lw=4)
         ax.plot([119, 121], [26.65, 26.65], color=gp_color, lw=4)
@@ -163,15 +160,15 @@ class AnimationEngine:
        
         if not summary_row.empty:
             eraser_row = summary_row[summary_row['nfl_id'] == eraser_id]
-            
+           
             if not eraser_row.empty:
                 vis_score = eraser_row.iloc[0]['vis_score']
                 start_dist = eraser_row.iloc[0]['p_dist_at_throw']
                 end_dist = eraser_row.iloc[0].get('p_dist_at_arrival', start_dist - vis_score)
-                
+               
                 if 'player_name' in eraser_row.columns:
                     eraser_name = eraser_row.iloc[0]['player_name']
-            
+           
             # Get context defender (closest at throw)
             context_idx = summary_row['p_dist_at_throw'].idxmin()
             context_id = summary_row.loc[context_idx]['nfl_id']
@@ -273,7 +270,7 @@ class AnimationEngine:
             for pid in all_player_ids:
                 player_row = snap[snap['nfl_id'] == pid]
                 if not player_row.empty:
-                    
+                   
                     # Update cache with current position
                     player_cache[pid] = {
                         'x': player_row.iloc[0]['x'],
@@ -282,7 +279,7 @@ class AnimationEngine:
                         's_derived': player_row.iloc[0].get('s_derived', 0),
                         'phase': player_row.iloc[0]['phase']
                     }
-                
+               
                 # Use cached position (current or last known)
                 if pid in player_cache:
                     frame_positions[pid] = player_cache[pid].copy()
@@ -303,7 +300,7 @@ class AnimationEngine:
         at_context.patch.set_facecolor('#1a1a2e')
         at_context.patch.set_edgecolor('white')
         at_context.patch.set_alpha(0.95)
-        
+       
         for txt in at_context.txt.get_children():
             txt.set_color('white')
        
@@ -314,12 +311,12 @@ class AnimationEngine:
         metric_text = f"START: {start_dist:.1f} yds\nVIS: {sign}{vis_score:.1f} yds\nEND: {end_dist:.1f} yds"
         at_metric = AnchoredText(metric_text, loc='upper center',
                                  prop=dict(size=12, fontweight='bold', family='monospace'), frameon=True)
-        
+       
         at_metric.patch.set_boxstyle("round,pad=0.4")
         at_metric.patch.set_facecolor('#16213e')
         at_metric.patch.set_edgecolor('#00ff88' if vis_score > 0 else '#ff4444')
         at_metric.patch.set_linewidth(3)
-        
+       
         for txt in at_metric.txt.get_children():
             txt.set_color('#00ff88' if vis_score > 0 else '#ff4444')
        
@@ -355,7 +352,7 @@ class AnimationEngine:
         # Ball Landing Spot (X marker - visible entire animation, with glow)
         ax.scatter([bx_end], [by_end], c='#ffff00', s=400, marker='X',
                    edgecolors='#ff6600', linewidths=3, zorder=2, alpha=0.9)
-        
+       
         # Add subtle circle for target area
         target_circle = Circle((bx_end, by_end), 1.5, color='#ffff00', alpha=0.2, zorder=1)
         ax.add_patch(target_circle)
@@ -365,11 +362,11 @@ class AnimationEngine:
         # Other defenders (team color circles with shadow)
         scat_def_others = ax.scatter([], [], c=def_color, s=200, marker='o',
                                      edgecolors=def_secondary, linewidths=2, zorder=3, alpha=0.7)
-        
+       
         # Shadow for depth
         scat_def_shadow = ax.scatter([], [], c='black', s=200, marker='o', alpha=0.2, zorder=2)
        
-        
+       
         # Other offense (team color circles with shadow)
         scat_off_others = ax.scatter([], [], c=off_color, s=200, marker='o',
                                      edgecolors=off_secondary, linewidths=2, zorder=3, alpha=0.7)
@@ -379,7 +376,7 @@ class AnimationEngine:
         qb_color = off_color  # Use offense primary
         scat_qb = ax.scatter([], [], c=qb_color, s=350, marker='D',
                               edgecolors=off_secondary, linewidths=3, zorder=5)
-        
+       
         scat_qb_shadow = ax.scatter([], [], c='black', s=350, marker='D', alpha=0.2, zorder=4)
         qb_label = ax.text(0, 0, '', ha='center', va='bottom', fontsize=8,
                            fontweight='bold', color='white',
@@ -423,7 +420,7 @@ class AnimationEngine:
         text_void = ax.text(0, 0, '', ha='center', va='center', fontsize=10, fontweight='bold',
                             color='black', bbox=dict(facecolor='#ffff00', alpha=0.9, edgecolor='none', pad=3))
        
-        trail_length = 30 # TODO: Adgust
+        trail_length = 30 # TODO: Adjust
         target_history = []
         eraser_history = []
         context_history = []
@@ -453,27 +450,20 @@ class AnimationEngine:
         def update(frame_num):
             # Use actual frame_id (since frames_list may have duplicates)
             actual_frame = frame_num  # frames_list[frame_idx] but since ani uses range(len(frames_list))
-            
+           
             # Wait, ani = FuncAnimation(..., frames=frames_list, ...) so frame_num is the value from frames_list, i.e., the frame_id
             f = frame_num  
-            
+           
             # Timer relative to throw frame
             time_sec = (f - throw_frame) * 0.1
             if f < throw_frame:
                 timer_text.set_text(f"T {time_sec:.1f}s")
+                phase_label.set_text("⏳ PRE THROW")
+                phase_label.get_bbox_patch().set_facecolor('#3498db')
             else:
                 timer_text.set_text(f"T +{time_sec:.1f}s")
-           
-            # Get phase for this frame from cache
-            frame_positions = player_positions_by_frame.get(f, {})
-            if frame_positions:
-                # Take phase from any player (assuming consistent per frame)
-                sample_player = next(iter(frame_positions.values()))
-                current_phase = sample_player.get('phase', 'unknown')
-            else:
-                current_phase = 'unknown'
-            phase_label.set_text(current_phase.upper().replace('_', ' '))
-            phase_label.get_bbox_patch().set_facecolor(phase_colors.get(current_phase, '#7f8c8d'))
+                phase_label.set_text("🏈 BALL IN AIR")
+                phase_label.get_bbox_patch().set_facecolor('#e74c3c')
            
             # Ball position
             if f in ball_pos_dict:
@@ -494,6 +484,7 @@ class AnimationEngine:
             if qb_id:
                 excluded_ids.add(qb_id)
            
+            frame_positions = player_positions_by_frame.get(f, {})
             for pid, pos in frame_positions.items():
                 if pid in excluded_ids:
                     continue
