@@ -22,14 +22,19 @@ class PhysicsEngine:
         def calculate_sg(group):
 
             if len(group) < WINDOW:
-                dx = group['x'].diff() 
-                dy = group['y'].diff()
+                # 1. Calculate Velocity Components (First Derivative)
+                # We use fillna(0) to handle the first frame where diff is NaN
+                vx = group['x'].diff().fillna(0) / 0.1
+                vy = group['y'].diff().fillna(0) / 0.1
                 
-                dist = np.sqrt(dx**2 + dy**2)
-                s = dist / 0.1 
+                # 2. Calculate Acceleration Components (Second Derivative)
+                # Differentiate Velocity to get Acceleration
+                ax = vx.diff().fillna(0) / 0.1
+                ay = vy.diff().fillna(0) / 0.1
                 
-                # Acceleration is diff of speed
-                a = s.diff().fillna(0) / 0.1
+                # 3. Calculate Vector Magnitudes
+                s = np.sqrt(vx**2 + vy**2)
+                a = np.sqrt(ax**2 + ay**2)
                 
                 return pd.DataFrame(
                     {'s_derived': s, 'a_derived': a}, 

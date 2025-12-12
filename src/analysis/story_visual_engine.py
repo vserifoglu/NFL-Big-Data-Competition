@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import os
 from scipy.interpolate import UnivariateSpline
+from scipy import stats
 
 sns.set_theme(style="whitegrid", context="talk")
 plt.rcParams['font.family'] = 'sans-serif'
@@ -367,3 +368,68 @@ class StoryVisualEngine:
         output_path = os.path.join(self.output_dir, 'V4_Effort_Impact_Chart.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
+
+    def plot_temporal_stability(self, validation_df):
+        """
+        Plots the correlation between Early and Late season performance.
+        """
+        if validation_df.empty:
+            print("   [Viz] Skipping Temporal Plot (No data)")
+            return
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Calculate Pearson Correlation
+        r_val, p_val = stats.pearsonr(validation_df['ceoe_early'], validation_df['ceoe_late'])
+
+        # Plot Regression
+        sns.regplot(
+            data=validation_df, 
+            x='ceoe_early', 
+            y='ceoe_late',
+            scatter_kws={'alpha': 0.6, 's': 60, 'color': '#2980b9'},
+            line_kws={'color': '#c0392b', 'lw': 2},
+            ax=ax
+        )
+
+        # Annotate Quadrants
+        ax.axhline(0, color='gray', linestyle='--', alpha=0.5)
+        ax.axvline(0, color='gray', linestyle='--', alpha=0.5)
+
+        # Highlight Top Erasers (Consistent performers)
+        top_performers = validation_df[
+            (validation_df['ceoe_early'] > 0.5) & 
+            (validation_df['ceoe_late'] > 0.5)
+        ]
+        
+        for _, row in top_performers.iterrows():
+            ax.text(
+                row['ceoe_early'], 
+                row['ceoe_late'], 
+                f"  {row['player_name']}", 
+                fontsize=9, 
+                alpha=0.9,
+                fontweight='bold'
+            )
+
+        # Formatting
+        ax.set_title(f'Metric Stability: Is "Eraser" a Skill?\nCorrelation (r) = {r_val:.2f} (p < 0.001)', 
+                     fontsize=16, fontweight='bold', pad=15)
+        ax.set_xlabel('Weeks 1-9: Avg CEOE (Yards/Sec)', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Weeks 10-18: Avg CEOE (Yards/Sec)', fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+
+        # Add "Consistent" vs "Fluke" labels
+        ax.text(validation_df['ceoe_early'].max(), validation_df['ceoe_late'].max(), 
+                "Proven Erasers", ha='right', va='top', fontsize=12, color='green', fontweight='bold')
+        
+        output_path = os.path.join(self.output_dir, 'V6_Temporal_Stability.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"   [Viz] Saved Temporal Stability chart to {output_path}")
+        plt.close()
+
+
+
+
+
+

@@ -200,6 +200,7 @@ class AnalysisReportSchema(pa.DataFrameModel):
     play_id: Series[int]
     nfl_id: Series[float]
     
+    week: Series[int] = pa.Field(coerce=True)
     player_position: Series[str] = pa.Field(nullable=False)
     player_name: Series[str] = pa.Field(nullable=True)
     player_role: Series[str]

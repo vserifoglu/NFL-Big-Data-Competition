@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
-from src.config import vis_config
-
+from scipy import stats
 
 class TableGenerator:
     def __init__(self, suumary_df: str):
@@ -299,25 +298,126 @@ class TableGenerator:
         
         return output
     
-if __name__ == "__main__":
-    # If running standalone, you need to load data here manually
-    df = pd.read_csv(vis_config.SUMMARY_FILE)
-    gen = TableGenerator(df)
-    
-    print("\n--- SHRUNK LEADERBOARD (Bayesian m=20) ---")
-    print(gen.generate_shrunk_leaderboard().to_string(index=False))
-    
-    print("\n--- QUADRANT SUMMARY ---")
-    print(gen.generate_quadrant_counts().to_string(index=False))
+    def generate_temporal_stability(self, snap_threshold=25):
+        """
+        Validates if Early-Season CEOE (Weeks 1-9) predicts Late-Season CEOE (Weeks 10+).
+        This is the "Signal vs Noise" proof.
+        """
+        df = self.df.copy()
 
-    print("\n--- DAMAGE CONTROL VALIDATION (YAC) ---")
-    print(gen.generate_damage_control_validation())
+        # 1. Split Data
+        early_mask = df['week'] <= 9
+        late_mask = df['week'] > 9
+        
+        if df[late_mask].empty:
+            print("Warning: No data for Weeks 10+. Cannot run Temporal Stability.")
+            return pd.DataFrame()
 
-    print("\n--- EPA SAVINGS TABLE ---")
-    print(gen.generate_epa_savings())
+        # 2. Aggregate Early Season
+        early = df[early_mask].groupby('nfl_id').agg(
+            player_name=('player_name', 'first'),
+            pos=('player_position', 'first'),
+            ceoe_early=('ceoe_score', 'mean'),
+            snaps_early=('play_id', 'count')
+        ).reset_index()
+
+        # 3. Aggregate Late Season
+        late = df[late_mask].groupby('nfl_id').agg(
+            ceoe_late=('ceoe_score', 'mean'),
+            snaps_late=('play_id', 'count')
+        ).reset_index()
+
+        # 4. Merge
+        merged = early.merge(late, on='nfl_id', how='inner')
+
+        # 5. Filter for meaningful sample size in BOTH splits
+        valid_players = merged[
+            (merged['snaps_early'] >= snap_threshold) & 
+            (merged['snaps_late'] >= snap_threshold)
+        ].copy()
+
+        return valid_players
+
+    def run_stability_diagnosis(self):
+        print("--- DIAGNOSTIC: TEMPORAL STABILITY CHECK ---")
+
+        # 2. Define the Split
+        early = self.df[self.df['week'] <= 9].copy()
+        late = self.df[self.df['week'] > 9].copy()
+        
+        # 3. Iterate through snap thresholds to find the "Sweet Spot"
+        thresholds = [10, 20, 30, 40, 50]
+        
+        for thresh in thresholds:
+            # Group by Player
+            # We take the mean of the CEOE score (which already has the global baseline subtracted)
+            e_stats = early.groupby('nfl_id').agg(
+                ceoe_early=('ceoe_score', 'mean'),
+                snaps_early=('play_id', 'count'),
+                name=('player_name', 'first')
+            ).reset_index()
+            
+            l_stats = late.groupby('nfl_id').agg(
+                ceoe_late=('ceoe_score', 'mean'),
+                snaps_late=('play_id', 'count')
+            ).reset_index()
+            
+            # Merge
+            merged = e_stats.merge(l_stats, on='nfl_id', how='inner')
+            
+            # Filter
+            qualified = merged[
+                (merged['snaps_early'] >= thresh) & 
+                (merged['snaps_late'] >= thresh)
+            ]
+            
+            if len(qualified) < 10:
+                print(f"[Thresh {thresh}] Not enough players ({len(qualified)}). Stopping.")
+                break
+                
+            # Calculate R
+            r, p = stats.pearsonr(qualified['ceoe_early'], qualified['ceoe_late'])
+            
+            # Verdict
+            verdict = "✅ PASSED" if r > 0.3 else "❌ FAILED"
+            print(f"[Thresh {thresh}+ Snaps] n={len(qualified)} players | r = {r:.3f} (p={p:.4f}) -> {verdict}")
+
+    def run_all_analyses(self):
+        """
+        Orchestrates all table generation methods and returns them in a keyed dictionary.
+        """
+        return {
+            "leaderboard": self.generate_shrunk_leaderboard(),
+            "quadrant_counts": self.generate_quadrant_counts(),
+            "damage_control": self.generate_damage_control_validation(),
+            "epa_savings": self.generate_epa_savings(),
+            "position_breakdown": self.generate_position_breakdown(),
+            "void_effect": self.generate_void_effect_size(),
+            "temporal_stability": self.generate_temporal_stability(),
+            "stability_diagnosis": self.run_stability_diagnosis()
+        }
     
-    print("\n--- POSITION BREAKDOWN (Who Should Erase?) ---")
-    print(gen.generate_position_breakdown().to_string(index=False))
+# Debugging. 
+# if __name__ == "__main__":
+#     from src.config import vis_config
+
+#     df = pd.read_csv(vis_config.SUMMARY_FILE)
+#     gen = TableGenerator(df)
     
-    print("\n--- VOID EFFECT SIZE (Δ from Tight Baseline) ---")
-    print(gen.generate_void_effect_size().to_string(index=False))
+#     print("\n--- SHRUNK LEADERBOARD (Bayesian m=20) ---")
+#     print(gen.generate_shrunk_leaderboard().to_string(index=False))
+    
+#     print("\n--- QUADRANT SUMMARY ---")
+#     print(gen.generate_quadrant_counts().to_string(index=False))
+
+#     print("\n--- DAMAGE CONTROL VALIDATION (YAC) ---")
+#     print(gen.generate_damage_control_validation())
+
+#     print("\n--- EPA SAVINGS TABLE ---")
+#     print(gen.generate_epa_savings())
+    
+#     print("\n--- POSITION BREAKDOWN (Who Should Erase?) ---")
+#     print(gen.generate_position_breakdown().to_string(index=False))
+    
+#     print("\n--- VOID EFFECT SIZE (Δ from Tight Baseline) ---")
+#     print(gen.generate_void_effect_size().to_string(index=False))
