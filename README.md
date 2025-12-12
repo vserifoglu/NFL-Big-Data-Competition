@@ -65,23 +65,26 @@ This project introduces the "Void Engine" framework for grading defender effort 
 pip install -r requirements.txt
 ```
 
-### 2. Run the Full Pipeline
+
+### 2. Run the Data Engineering Pipeline
 ```bash
-python src/analysis/orchestrator.py
+python -m src.orchestrator
 ```
-This script prepares all data and metrics for downstream analysis and visualization.
 
-### 3. Generate Visualizations
-After running the orchestrator, you can run visualization scripts (e.g. story_visual_engine.py) in `src/analysis/`:
+### 3. Run the Data Vis Pipeline
 ```bash
-python src/analysis/orchestrator.py
+python -m src.analysis.orchestrator
 ```
-Other scripts in `src/analysis/` can be run similarly to generate specific charts or tables.
 
-### 4. Explore Notebooks
-Jupyter notebooks in the `notebooks/` folder provide EDA, validation, and reporting workflows.
+Each pipeline is modular and can be customized via `src/config.py`. Data engineering outputs are saved in `data/processed/`, and visuals/animations in `static/visuals/` by default.
 
-## Example Animation
+### 4. Generate Tables
+After running the pipeline, you can generate tables and charts using:
+```bash
+python -m src.analysis.table_generator
+```
+
+### 5. Animation Example
 Below is a sample animation showing elite defender effort:
 <div align="center">
 	<img src="https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Compeition/refs/heads/main/static/visuals/Figure_Top_FS_Eraser.gif" alt="Andre Cisco Eraser GIF" />
