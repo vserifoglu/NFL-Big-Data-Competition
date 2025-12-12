@@ -1,5 +1,10 @@
 # Mathematical Methodology
 
+![Math Workflow Diagram](https://raw.githubusercontent.com/vserifoglu/NFL-Big-Data-Competition/refs/heads/main/docs/math_workflow_diagram.png)
+
+*Figure - Mathematical Workflow Diagram*
+
+
 ## 1. Physics Engine: Vector Kinematics
 
 We use a **Savitzky-Golay Filter** (window=7, poly=2) to smooth raw tracking data (x,y), then calculate the magnitude of the velocity and acceleration vectors.

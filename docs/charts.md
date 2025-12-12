@@ -52,3 +52,79 @@ flowchart TD
     style F fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     style G fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
 ```
+
+---
+
+## Math workflow
+```
+graph LR
+    %% GLOBAL SETTINGS
+    %% LR = Left to Right flow
+
+    %% NODES
+    Raw(("Raw Data
+    (x, y, t)"))
+
+    subgraph Step 1: Physics Engine
+        direction TB
+        Deriv["d/dt (SavGol)"]
+        Vecs["Vector Components
+        (vx, vy, ax, ay)"]
+        Mags["Magnitudes
+        s(t), a(t)"]
+    end
+
+    subgraph Step 2: Metric Extraction
+        direction TB
+        Dist["Distance(t)
+        √(Δx² + Δy²)"]
+        VIS["VIS
+        Start - End"]
+        Speed["Closing Speed
+        - d/dt (Dist)"]
+    end
+
+    subgraph Step 3: Context & Benchmarking
+        direction TB
+        Context[("Context
+        (Role, Void)")]
+        Base["μ (Expected)"]
+        CEOE["CEOE
+        Speed - μ"]
+    end
+
+    subgraph Step 4: Final Rank
+        direction TB
+        Bayes["Bayesian Shrinkage
+        (Weighted Avg)"]
+        Final[("🏆 Final Score")]
+    end
+
+    %% CONNECTIONS (The Flow)
+    %% 1. Raw to Physics
+    Raw --> Deriv
+    Deriv --> Vecs
+    Vecs --> Mags
+
+    %% 2. Physics to Metrics (The Link you missed)
+    %% Clean positions from Physics feed Distance calc
+    Raw -.->|"Smoothed Pos"| Dist
+    Dist --> VIS
+    Dist --> Speed
+
+    %% 3. Metrics to Benchmarking
+    Speed --> CEOE
+    Context --> Base
+    Base -->|"Subtract"| CEOE
+
+    %% 4. Benchmarking to Final
+    CEOE --> Bayes
+    Bayes --> Final
+
+    %% STYLING
+    linkStyle default stroke-width:2px,fill:none,stroke:#333
+    style Final fill:#bfb,stroke:#333,stroke-width:2px,color:black
+    style Raw fill:#f9f,stroke:#333,stroke-width:2px
+    style CEOE fill:#bbf,stroke:#333
+    style VIS fill:#bbf,stroke:#333
+```
